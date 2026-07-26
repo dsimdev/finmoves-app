@@ -4,6 +4,12 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.104.1] — 2026-07-24
+
+Actualizaciones de seguridad y correcciones menores.
+
+---
+
 ## [2.104.0] — 2026-07-24
 
 ### Ahora podés renombrar una categoría
