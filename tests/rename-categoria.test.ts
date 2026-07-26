@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validarRename, movimientosAMigrar, renombrarTemplate } from "@/utils/rename-categoria";
+import { visualDeCategoria } from "@/utils/categoria-visual";
 
 describe("validarRename", () => {
   const cats = ["Comida", "Transporte", "Ocio"];
@@ -72,5 +73,25 @@ describe("renombrarTemplate", () => {
     const tpl = { Comida: 50000 };
     renombrarTemplate(tpl, "Comida", "Súper");
     expect(tpl).toEqual({ Comida: 50000 });
+  });
+});
+
+// El bug del "ícono inventado": una categoría SIN visual guardado se mostraba con un ícono
+// deducido del NOMBRE. Al renombrar, si no se congela ese visual, la deducción cambia con el
+// nombre nuevo y aparece otro ícono. renombrarCategoria fija el visual antes de guardar; acá
+// se valida que la deducción vieja y la nueva difieren (por eso hay que congelarla).
+describe("bug del ícono al renombrar (visual deducido por nombre)", () => {
+  it("una categoría sin visual cambia de ícono deducido al cambiar el nombre", () => {
+    const antes = visualDeCategoria({ nombre: "Comida" });
+    const despues = visualDeCategoria({ nombre: "Zxqw" }); // nombre sin regla → default distinto
+    expect(antes.icono).not.toBe(despues.icono);
+  });
+
+  it("si el visual está guardado, NO depende del nombre", () => {
+    const guardado = { icono: "transporte", color: "cielo" };
+    const antes = visualDeCategoria({ nombre: "Comida", ...guardado });
+    const despues = visualDeCategoria({ nombre: "Zxqw", ...guardado });
+    expect(antes.icono).toBe(despues.icono);
+    expect(antes.color).toBe(despues.color);
   });
 });

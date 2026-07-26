@@ -31,10 +31,12 @@ export const en: AppLocale = {
   renameDuplicate: "A category with that name already exists",
   renameSave: "Rename",
   renameConfirmTitle: "Rename category?",
-  renameConfirmBody: (de: string, a: string, n: number) =>
-    n > 0
-      ? `"${de}" becomes "${a}" and ${n} movement${n !== 1 ? "s" : ""} using it will be updated.`
-      : `"${de}" becomes "${a}".`,
+  renameConfirmBody: (de: string, a: string, n: number | null) =>
+    n === null
+      ? `"${de}" becomes "${a}" and the movements using it will be updated.`
+      : n > 0
+        ? `"${de}" becomes "${a}" and ${n} movement${n !== 1 ? "s" : ""} using it will be updated.`
+        : `"${de}" becomes "${a}".`,
   icon: "Icon",
   color: "Colour",
   exampleMovement: "A movement",

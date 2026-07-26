@@ -36,7 +36,7 @@ function ItemRow({ name, dot, icon, activo, onToggle, onDelete }: { name: string
 
 export default function MovementsSettings() {
   const { user } = useAuth();
-  const { config, refreshConfig: refresh, movimientos, recurrentes } = useData();
+  const { config, refreshConfig: refresh, refresh: refreshMovimientos, movimientos, loading: movsLoading } = useData();
   const t = useT();
 
   const [guardando, setGuardando] = useState(false);
@@ -90,14 +90,22 @@ export default function MovementsSettings() {
   const [renaming, setRenaming] = useState(false);
   useEffect(() => { setRenameInput(editandoVisual ?? ""); }, [editandoVisual]);
   const renameCheck = catEditando ? validarRename(catEditando.nombre, renameInput, localCats.map((c) => c.nombre)) : { ok: false as const, motivo: "vacio" as const };
-  const movsAfectados = catEditando ? movimientos.filter((m) => m.categoria === catEditando.nombre).length : 0;
+  // Conteo para el diálogo, del cache. Es solo informativo: la migración lee del servidor, así
+  // que aunque el cache esté frío (count 0) el rename igual migra todo. Por eso null = "cargando"
+  // y no "0", para no mentir con un número.
+  const movsAfectados = catEditando && !movsLoading
+    ? movimientos.filter((m) => m.categoria === catEditando.nombre).length
+    : null;
   const doRename = async () => {
     if (!user?.uid || !config || !catEditando || !renameCheck.ok || renaming) return;
     const actual = catEditando.nombre, nuevo = renameInput.trim();
     setRenaming(true);
     try {
-      await renombrarCategoria(user.uid, actual, nuevo, config, movimientos, recurrentes);
-      refresh();
+      // El servicio lee movimientos y recurrentes del SERVIDOR (no del cache del cliente), así
+      // que migra bien aunque acá el cache todavía no haya cargado.
+      await renombrarCategoria(user.uid, actual, nuevo, config);
+      refresh();             // config (nombre + presupuesto)
+      refreshMovimientos();  // invalida el cache de movimientos → re-fetch con la categoría nueva
       // Reflejar el rename en el estado local (la config se re-hidrata, pero didInit ya corrió).
       const next = catsRef.current.map((c) => (c.nombre === actual ? { ...c, nombre: nuevo } : c));
       catsRef.current = next; setLocalCats(next);

@@ -4,6 +4,19 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.104.2] — 2026-07-24
+
+### Arreglado: renombrar una categoría no arrastraba los movimientos viejos
+Al renombrar una categoría, en algunos casos los movimientos históricos se quedaban con el
+nombre anterior, y además a la categoría le aparecía un ícono distinto al que tenía. Las dos
+cosas ya están arregladas: ahora el rename actualiza todos los movimientos que la usan y conserva
+su ícono y color.
+
+**Ojo:** si ya renombraste una categoría antes de esta actualización y te quedaron movimientos
+colgados, volvé a renombrarla ahora y se acomodan solos.
+
+---
+
 ## [2.104.1] — 2026-07-24
 
 Actualizaciones de seguridad y correcciones menores.
