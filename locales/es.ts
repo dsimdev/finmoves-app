@@ -24,7 +24,15 @@ export const es = {
   pageTitleDashboard: "Inicio",
   pageTitleMovements: "Movimientos",
   tapToOpen: "tocá de nuevo para abrir",
-  chooseIconColor: "Elegir ícono y color",
+  chooseIconColor: "Editar categoría",
+  categoryName: "Nombre",
+  renameDuplicate: "Ya existe una categoría con ese nombre",
+  renameSave: "Renombrar",
+  renameConfirmTitle: "¿Renombrar categoría?",
+  renameConfirmBody: (de: string, a: string, n: number) =>
+    n > 0
+      ? `Se renombra "${de}" a "${a}" y se actualizan ${n} movimiento${n !== 1 ? "s" : ""} que la usan.`
+      : `Se renombra "${de}" a "${a}".`,
   icon: "Ícono",
   color: "Color",
   exampleMovement: "Un movimiento",

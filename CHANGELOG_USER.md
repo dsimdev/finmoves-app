@@ -4,6 +4,19 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.104.0] — 2026-07-24
+
+### Ahora podés renombrar una categoría
+Antes podías cambiarle el ícono, el color y el presupuesto a una categoría, pero no el nombre.
+Ahora sí: en Ajustes → Movimientos → Categorías, tocá el ícono de una categoría y arriba de todo
+tenés el campo **Nombre**.
+
+Lo importante: al renombrar **se actualizan también todos los movimientos** que la usaban, más su
+presupuesto y sus recurrentes. Así no se te parte el historial — nada queda colgado en la
+categoría vieja. Antes de guardar te avisa cuántos movimientos se van a actualizar.
+
+---
+
 ## [2.103.1] — 2026-07-23
 
 ### El calendario vuelve a marcar con puntitos
