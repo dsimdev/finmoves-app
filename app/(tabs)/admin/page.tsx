@@ -31,7 +31,6 @@ export default function AdminPage() {
   const [codes, setCodes] = useState<AdminCode[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const selectedUser = users.find((u) => u.uid === selectedUid) ?? null;
 
   const [inviteCode, setInviteCode] = useState("");
   const [genBusy, setGenBusy] = useState(false);

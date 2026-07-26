@@ -8,6 +8,7 @@ import { agruparPorPeriodo, fechaCorta, gastosPorCategoria } from "@/utils/perio
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { serieTendencia, inflacionPersonal as calcInflacionPersonal, parsePeriodoId } from "@/utils/reportes";
 import { duracionDisponible, duracionMedianaPeriodos } from "@/utils/duracion-disponible";
+import { fechaISO_AR } from "@/utils/fecha-ar";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { Movimiento } from "@/types";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -71,7 +72,7 @@ export default function Dashboard() {
   const gastos = useMemo(() => p?.movimientos.filter((m) => m.tipo === "Gasto") ?? [], [p]);
   // Gasto de HOY (fecha AR): lo que llevás gastado en el día del período en curso.
   const gastadoHoy = useMemo(() => {
-    const hoy = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const hoy = fechaISO_AR();
     return gastos.filter((m) => m.fecha === hoy).reduce((s, m) => s + m.monto, 0);
   }, [gastos]);
   const promPorMov = gastos.length > 0 ? Math.round(gastos.reduce((s, m) => s + m.monto, 0) / gastos.length) : 0;

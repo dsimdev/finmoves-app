@@ -4,6 +4,12 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.104.4] — 2026-07-24
+
+Mejoras internas y de seguridad. Sin cambios visibles.
+
+---
+
 ## [2.104.3] — 2026-07-24
 
 ### Arreglado: los cambios ahora se reflejan al abrir la app

@@ -8,12 +8,13 @@ import { useData } from "@/app/(tabs)/data-context";
 import { crearRecordatorio, listarRecordatorios, eliminarRecordatorio, type Recordatorio } from "@/services/firebase/recordatorios";
 import { fechaCorta } from "@/utils/periodo";
 import { proyectarRecurrentes } from "@/utils/recurrent-forecast";
+import { ahoraAR, fechaISO_AR } from "@/utils/fecha-ar";
 import { useMoney } from "@/hooks/useHideValues";
 import { ReminderCalendar } from "./ReminderCalendar";
 
 // Días entre hoy (AR) y una fecha YYYY-MM-DD. Negativo = ya venció.
 function diasHasta(fecha: string): number {
-  const ar = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const ar = ahoraAR();
   const hoy = Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate());
   const [y, m, d] = fecha.split("-").map(Number);
   return Math.round((Date.UTC(y, m - 1, d) - hoy) / 86_400_000);
@@ -51,7 +52,7 @@ export function ReminderCard({ open, onClose }: { open: boolean; onClose: () => 
 
   // Hoy (AR) se fija al montar: leer el reloj durante el render es impuro y dos renders del
   // mismo día podrían no coincidir. La card se abre y cierra, así que se recalcula seguido.
-  const [hoyISO] = useState(() => new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const [hoyISO] = useState(fechaISO_AR);
 
   // Recurrentes proyectados a su próxima fecha esperada. Mismo cálculo que usa el cron para
   // notificar (utils/recurrent-forecast), así el calendario y el push no se contradicen.

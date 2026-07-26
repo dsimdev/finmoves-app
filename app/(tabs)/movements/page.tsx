@@ -16,7 +16,7 @@ import { UndoToast } from "@/components/ui/UndoToast";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useMoney } from "@/hooks/useHideValues";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
-import { Movimiento, TipoMovimiento } from "@/types";
+import { Movimiento } from "@/types";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { MovementModal } from "@/components/movements/MovementModal";

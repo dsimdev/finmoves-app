@@ -1,6 +1,7 @@
 import { categoriasEnRiesgo, partirPorEstado } from "./budget-alert";
 import { shouldRemind } from "./recurrent-reminder";
 import { recurrentKey } from "./recurrent-key";
+import { fechaISO_AR } from "./fecha-ar";
 import type { Movimiento, ConfigUsuario } from "@/types";
 import type { Recurrente } from "@/services/firebase/recurrentes";
 import type { InAppMeta, NotifNueva } from "@/services/firebase/notificaciones";
@@ -150,7 +151,7 @@ export function notificacionesPendientes(e: EstadoInApp): ResultadoInApp {
         if (recurrentKey(m) !== clave || !m.fecha) continue;
         if (m.fecha > ultima) ultima = m.fecha;
       }
-      const ref = ultima || (r.createdAt ? new Date(r.createdAt - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : "");
+      const ref = ultima || (r.createdAt ? fechaISO_AR(r.createdAt) : "");
       if (!ref) continue;
       if (shouldRemind(ref, e.hoy, undefined)) pendientes.push(r.descripcion);
     }

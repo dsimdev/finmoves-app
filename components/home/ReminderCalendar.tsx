@@ -6,6 +6,7 @@ import { useT } from "@/hooks/useTranslation";
 import { useAppPrefs } from "@/hooks/useAppPrefs";
 import type { Recordatorio } from "@/services/firebase/recordatorios";
 import type { RecurrenteProyectado } from "@/utils/recurrent-forecast";
+import { fechaISO_AR } from "@/utils/fecha-ar";
 
 // Calendario de la card de recordatorios. No es un adorno: ES el control de entrada — se
 // navega entre meses y se toca un día para cargar ahí (reemplaza al input de fecha, que
@@ -48,11 +49,15 @@ export function ReminderCalendar({ recordatorios, recurrentes = [], seleccionado
 }) {
   const t = useT();
   const { lang } = useAppPrefs();
-  const ar = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  const hoyISO = ar.toISOString().slice(0, 10);
+  // Hoy (AR) se fija al montar: leerlo en el cuerpo del render es impuro (dos renders del
+  // mismo día podrían no coincidir). Se toma una vez y de ahí sale también el mes inicial.
+  const [hoyISO] = useState(fechaISO_AR);
 
-  // Mes en vista: arranca en el actual y se mueve con las flechas.
-  const [vista, setVista] = useState({ anio: ar.getUTCFullYear(), mes: ar.getUTCMonth() });
+  // Mes en vista: arranca en el del día de hoy y se mueve con las flechas.
+  const [vista, setVista] = useState(() => {
+    const [y, m] = hoyISO.split("-").map(Number);
+    return { anio: y, mes: m - 1 };
+  });
 
   // Posición del popover del día. Se calcula respecto del contenedor del calendario y se
   // acomoda solo: arriba o abajo de la celda según dónde haya lugar, y corrido en horizontal
@@ -186,7 +191,7 @@ export function ReminderCalendar({ recordatorios, recurrentes = [], seleccionado
             const d = new Date(Date.UTC(anio, mes, 1));
             const nombre = d.toLocaleDateString(lang === "en" ? "en-US" : "es-AR", { month: "long", timeZone: "UTC" });
             const mesCap = `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)}`;
-            return anio === ar.getUTCFullYear() ? mesCap : `${mesCap} ${anio}`;
+            return anio === Number(hoyISO.slice(0, 4)) ? mesCap : `${mesCap} ${anio}`;
           })()}
         </span>
         <button type="button" onClick={() => mover(1)} aria-label={t.nextMonth} style={navBtn}>

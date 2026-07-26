@@ -1,4 +1,5 @@
 import type { Movimiento } from "@/types";
+import { aFechaAR } from "@/utils/fecha-ar";
 
 // Neutraliza inyección de fórmulas (Sheets/Excel/CSV): un valor de texto que
 // empieza con = + - @ (o tab/CR) sería interpretado como fórmula. Se le antepone
@@ -11,7 +12,7 @@ export function sanitizeCell(v: string | number): string | number {
 // Argentina = UTC-3 (sin horario de verano)
 // El form de Google escribe la hora SIN padding (9:48:43), minutos y segundos con padding.
 export function formatTimestampAR(date: Date): string {
-  const ar = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+  const ar = aFechaAR(date);
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${ar.getUTCDate()}/${ar.getUTCMonth() + 1}/${ar.getUTCFullYear()} ${ar.getUTCHours()}:${pad(ar.getUTCMinutes())}:${pad(ar.getUTCSeconds())}`;
 }

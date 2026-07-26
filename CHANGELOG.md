@@ -4,6 +4,33 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.104.4] — 2026-07-24
+
+### Changed — AR date logic centralized (`utils/fecha-ar.ts`)
+The `new Date(Date.now() - 3*60*60*1000)` idiom for "today in Argentina" was copy-pasted across 14
+files. Two problems: reading the clock in a component's render body is impure (React's
+`react-hooks/purity` flagged it — a component could paint with one "today" and repaint with
+another), and a DST change would mean fixing 14 places. Now one module: `fechaISO_AR`,
+`mesISO_AR`, `ahoraAR`, `aFechaAR`, `fechaISO_AR_haceDias` (8 tests). All 14 call sites migrated;
+the private `hoyAR`/`isoHaceDiasAR` in `lib/notifications` are gone. The in-render reads
+(`ReminderCalendar`, `ReminderCard`) now take "today" once at mount via lazy `useState`.
+
+### Fixed — security override no longer breaks ESLint
+The blanket `brace-expansion: 5.0.8` override from v2.104.1 broke ESLint (its `minimatch@3` needs
+the 1.x API — `expand is not a function`). Replaced with per-line nested overrides: `minimatch@3`
+→ `brace-expansion@1.1.16`, `minimatch@9/10` → `2.1.2` — the patched release of each major.
+`npm audit` still lists brace-expansion (a known false positive: it collapses the advisory's
+per-major ranges to `<=5.0.7`), but the installed versions carry the DoS fix, and these chains are
+dev/build only with no user-controlled glob input. Forcing 5.x to silence audit would cost ESLint.
+
+### Housekeeping
+Removed dead imports/vars (`parsePeriodoId`, `abbr`, `db`, `formatARS`, unused `TipoMovimiento`,
+a stray `money` helper) and configured ESLint to ignore `_`-prefixed intentional discards. Lint
+warnings 60 → 47; the rest (dense report-page calcs, `exhaustive-deps`, `<img>`) are deferred to a
+dedicated pass rather than rushed.
+
+---
+
 ## [2.104.3] — 2026-07-24
 
 ### Fixed — config cache never revalidated → data changes didn't show up

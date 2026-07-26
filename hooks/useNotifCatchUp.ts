@@ -6,6 +6,7 @@ import { agregarNotificaciones, leerNotifyMeta, guardarNotifyMeta } from "@/serv
 import { obtenerPresupuesto } from "@/services/firebase/presupuestos";
 import { listarRecordatorios } from "@/services/firebase/recordatorios";
 import { parsePeriodoId } from "@/utils/reportes";
+import { fechaISO_AR } from "@/utils/fecha-ar";
 import type { Movimiento, ConfigUsuario } from "@/types";
 import type { Recurrente } from "@/services/firebase/recurrentes";
 
@@ -48,7 +49,7 @@ export function useNotifCatchUp({ uid, movimientos, config, recurrentes, listo, 
         const dias = periodoActualId
           ? Math.max(1, Math.floor((Date.now() - parsePeriodoId(periodoActualId).getTime()) / 86_400_000) + 1)
           : 0;
-        const hoy = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const hoy = fechaISO_AR();
 
         const { nuevas, meta: metaNueva, budgetAvisos: budgetNuevo } = notificacionesPendientes({
           meta,

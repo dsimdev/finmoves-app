@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { pushYGuardar } from "@/lib/notif-store";
 import { notifyAllUsers } from "@/lib/notifications";
+import { mesISO_AR } from "@/utils/fecha-ar";
 import { Timestamp } from "firebase-admin/firestore";
 
 // Cotización oficial del dólar (una sola vez, se reparte a todos los usuarios).
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   const syncMeta = (await syncMetaRef.get()).data() ?? {};
   const lastSync = syncMeta.lastSync as Timestamp | undefined;
   const lastStaleNotified = syncMeta.lastStaleNotified as string | undefined;
-  const mesActual = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 7); // YYYY-MM (AR)
+  const mesActual = mesISO_AR(); // YYYY-MM (AR)
   const stale = !lastSync || Date.now() - lastSync.toMillis() > SYNC_STALE_MS;
 
   let result: { ok: boolean; stale?: boolean; notified?: boolean };

@@ -17,6 +17,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/services/firebase/firebase";
 import { agruparPorPeriodo, gastosPorCategoria } from "@/utils/periodo";
 import { agruparGastosPorDescripcion } from "@/utils/agrupar-gastos";
+import { ahoraAR } from "@/utils/fecha-ar";
 import { obtenerPresupuesto, guardarPresupuesto } from "@/services/firebase/presupuestos";
 import { useMoney } from "@/hooks/useHideValues";
 import {
@@ -81,7 +82,7 @@ export default function ReportesPage() {
   // 31/12 y 5 después (26/12 → 5/1). Fuera de esa ventana no aparece, aunque haya datos.
   const hayWrapped = useMemo(() => {
     if (wrappedYears(movimientos).length === 0) return false;
-    const ar = new Date(Date.now() - 3 * 60 * 60 * 1000); // hoy en AR
+    const ar = ahoraAR();
     const m = ar.getUTCMonth() + 1, d = ar.getUTCDate();
     return (m === 12 && d >= 26) || (m === 1 && d <= 5);
   }, [movimientos]);

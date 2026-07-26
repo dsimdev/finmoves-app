@@ -6,6 +6,7 @@
 // lo considera vencido — así el calendario y el push nunca dicen cosas distintas.
 
 import { recurrentKey } from "./recurrent-key";
+import { fechaISO_AR } from "./fecha-ar";
 import { DUE_DAYS, PRE_DAYS, daysBetween } from "./recurrent-reminder";
 
 // Lo mínimo que se necesita de un movimiento para matchear (evita atar esto al tipo completo).
@@ -81,8 +82,7 @@ export function proyectarRecurrentes(
   for (const r of activos) {
     const ultima = ultimaPorClave.get(recurrentKey(r));
     // Misma referencia que el cron: última carga, o createdAt (en hora AR) si nunca se cargó.
-    const ref = ultima
-      || (r.createdAt ? new Date(r.createdAt - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : "");
+    const ref = ultima || (r.createdAt ? fechaISO_AR(r.createdAt) : "");
     if (!ref) continue;
 
     const dias = daysBetween(ref, hoy);
