@@ -4,6 +4,30 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.104.0] — 2026-07-24
+
+### Added — rename a category (with full migration)
+Categories could have their icon, colour, budget and active state edited, but not their name.
+That gap is closed: the icon/colour sheet (Settings → Movements → Categories, tap a category's
+icon) now leads with an editable **Name** field.
+
+A category name is not just a config label — every movement stores `m.categoria` as a string, and
+the budget template key and each recurrente's doc id derive from it too. So a rename **migrates
+all of it** rather than leaving history stranded under a category that no longer exists:
+
+- `utils/rename-categoria.ts` (pure, 13 tests) decides what to touch: it validates the new name
+  (non-empty, changed, and not colliding with another category case-insensitively — merging two
+  categories is a different operation and is blocked) and computes the affected movement ids and
+  the renamed budget key.
+- `services/firebase/rename-categoria.ts` performs it: movements via the existing
+  `recategorizarMovimientos` batch (bumps the sync revision once), the `categorias` array and
+  `presupuestoTemplate` key in config, and the recurrentes — whose doc id comes from the name, so
+  each is re-created under its new id and the old doc deleted.
+- The rename is confirmed first (it is a migration): the dialog states the new name and how many
+  movements will be updated.
+
+---
+
 ## [2.103.1] — 2026-07-23
 
 ### Changed — calendar marks are dots again, not a filled cell

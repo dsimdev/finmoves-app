@@ -12,6 +12,8 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CategoriaIcono, CategoriaGlifo } from "@/components/ui/CategoriaIcono";
 import { visualDeCategoria, ICONOS_LISTA, COLORES_LISTA, COLORES_CATEGORIA } from "@/utils/categoria-visual";
+import { validarRename } from "@/utils/rename-categoria";
+import { renombrarCategoria } from "@/services/firebase/rename-categoria";
 import { Toggle, SubHeader } from "../_shared";
 
 // Fila editable: nombre + switch activar/desactivar + borrar.
@@ -34,7 +36,7 @@ function ItemRow({ name, dot, icon, activo, onToggle, onDelete }: { name: string
 
 export default function MovementsSettings() {
   const { user } = useAuth();
-  const { config, refreshConfig: refresh } = useData();
+  const { config, refreshConfig: refresh, movimientos, recurrentes } = useData();
   const t = useT();
 
   const [guardando, setGuardando] = useState(false);
@@ -72,12 +74,36 @@ export default function MovementsSettings() {
   const scheduleSave = () => { if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(persist, 1200); };
 
   const toggleCat = (n: string) => { const next = catsRef.current.map(c => c.nombre === n ? { ...c, activa: !c.activa } : c); catsRef.current = next; setLocalCats(next); scheduleSave(); };
-  // Categoría cuyo ícono/color se está eligiendo (nombre), o null si el selector está cerrado.
+  // Categoría cuyo ícono/color/nombre se está editando (nombre), o null si está cerrado.
   const [editandoVisual, setEditandoVisual] = useState<string | null>(null);
   const catEditando = localCats.find((c) => c.nombre === editandoVisual) ?? null;
   const setVisual = (nombre: string, patch: { icono?: string; color?: string }) => {
     const next = catsRef.current.map(c => c.nombre === nombre ? { ...c, ...patch } : c);
     catsRef.current = next; setLocalCats(next); scheduleSave();
+  };
+
+  // Renombrar la categoría abierta. El nombre lo referencian los movimientos, el presupuesto y
+  // los recurrentes: renombrarCategoria migra todo eso (ver services/firebase/rename-categoria).
+  // Es una migración, así que se confirma antes de escribir.
+  const [renameInput, setRenameInput] = useState("");
+  const [renameConfirm, setRenameConfirm] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  useEffect(() => { setRenameInput(editandoVisual ?? ""); }, [editandoVisual]);
+  const renameCheck = catEditando ? validarRename(catEditando.nombre, renameInput, localCats.map((c) => c.nombre)) : { ok: false as const, motivo: "vacio" as const };
+  const movsAfectados = catEditando ? movimientos.filter((m) => m.categoria === catEditando.nombre).length : 0;
+  const doRename = async () => {
+    if (!user?.uid || !config || !catEditando || !renameCheck.ok || renaming) return;
+    const actual = catEditando.nombre, nuevo = renameInput.trim();
+    setRenaming(true);
+    try {
+      await renombrarCategoria(user.uid, actual, nuevo, config, movimientos, recurrentes);
+      refresh();
+      // Reflejar el rename en el estado local (la config se re-hidrata, pero didInit ya corrió).
+      const next = catsRef.current.map((c) => (c.nombre === actual ? { ...c, nombre: nuevo } : c));
+      catsRef.current = next; setLocalCats(next);
+      setRenameConfirm(null); setEditandoVisual(null);
+    } catch (err) { setSaveMsg({ ok: false, text: dbErrorMessage(err, t) }); setTimeout(() => setSaveMsg(null), 3000); setRenameConfirm(null); }
+    finally { setRenaming(false); }
   };
   const toggleMed = (n: string) => { const next = mediosRef.current.map(m => m.nombre === n ? { ...m, activo: !m.activo } : m); mediosRef.current = next; setLocalMedios(next); scheduleSave(); };
   const toggleOri = (n: string) => { const next = origRef.current.map(o => o.nombre === n ? { ...o, activo: !o.activo } : o); origRef.current = next; setLocalOrigenes(next); scheduleSave(); };
@@ -212,11 +238,33 @@ export default function MovementsSettings() {
 
       {/* Ícono y color de una categoría. Se elige tocando: sin campos de texto ni códigos.
           Los colores ofrecidos NO incluyen los semánticos de tipo (ver utils/categoria-visual). */}
-      <BottomSheet open={!!catEditando} onClose={() => setEditandoVisual(null)} title={catEditando?.nombre ?? ""}>
+      <BottomSheet open={!!catEditando} onClose={() => setEditandoVisual(null)} title={t.chooseIconColor}>
         {catEditando && (() => {
           const actual = visualDeCategoria(catEditando);
           return (
             <div style={{ paddingBottom: 10 }}>
+              {/* Nombre editable. Renombrar migra los movimientos + presupuesto + recurrentes,
+                  así que se confirma antes de escribir (es una migración, no un tweak). */}
+              <div className="label" style={{ marginBottom: 8 }}>{t.categoryName}</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <input
+                  value={renameInput}
+                  onChange={(e) => setRenameInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && renameCheck.ok) setRenameConfirm(catEditando.nombre); }}
+                  className="input" style={{ flex: 1 }} aria-label={t.categoryName}
+                />
+                <button
+                  type="button"
+                  onClick={() => setRenameConfirm(catEditando.nombre)}
+                  disabled={!renameCheck.ok}
+                  style={{ flexShrink: 0, padding: "0 16px", borderRadius: "var(--radius-sm)", border: "none", fontSize: 13, fontWeight: 700, cursor: renameCheck.ok ? "pointer" : "default", background: renameCheck.ok ? "var(--accent)" : "var(--surface-alt)", color: renameCheck.ok ? "#fff" : "var(--muted)" }}
+                >{t.renameSave}</button>
+              </div>
+              {/* Solo el choque de nombres se avisa; vacío o sin-cambio simplemente deshabilitan. */}
+              <div style={{ minHeight: 16, marginBottom: 16, fontSize: 11, color: "var(--red)" }}>
+                {!renameCheck.ok && renameCheck.motivo === "duplicado" ? t.renameDuplicate : ""}
+              </div>
+
               {/* Vista previa de cómo va a quedar en la lista. */}
               <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 13px", marginBottom: 18, background: "var(--surface-alt)", borderRadius: "var(--radius-sm)" }}>
                 <CategoriaIcono categoria={catEditando} size={34} />
@@ -270,6 +318,12 @@ export default function MovementsSettings() {
           );
         })()}
       </BottomSheet>
+
+      {renameConfirm && catEditando && (
+        <ConfirmModal title={t.renameConfirmTitle} confirmLabel={renaming ? "…" : t.renameSave} cancelLabel={t.cancel} onConfirm={doRename} onCancel={() => setRenameConfirm(null)}>
+          <div style={{ textAlign: "center" }}>{t.renameConfirmBody(catEditando.nombre, renameInput.trim(), movsAfectados)}</div>
+        </ConfirmModal>
+      )}
 
       {pendingDelete && (
         <ConfirmModal title={t.delete} confirmLabel={t.yesDelete} cancelLabel={t.cancel} confirmColor="var(--red)" onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)}>
