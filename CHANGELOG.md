@@ -4,6 +4,31 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.104.2] — 2026-07-24
+
+### Fixed — renaming a category left old movements behind and invented an icon
+Two bugs in the rename shipped in v2.104.0:
+
+- **Migration was skipped when the movements cache was cold.** `renombrarCategoria` received the
+  movements/recurrentes from the component's `useData` snapshot. If that snapshot hadn't loaded
+  yet (cold cache, or landing straight on Settings), it arrived empty → `ids.length === 0` → the
+  movement migration was skipped while config was still renamed. Result: config showed the new
+  name but every historical movement stayed under the old one. Now the service **queries
+  Firestore directly** (`where("categoria","==",old)` for movements, a full read for recurrentes),
+  so the migration no longer depends on client UI state.
+- **The icon changed on rename.** A category with no saved icon/colour was rendered from one
+  *deduced from its name*. Renaming kept the name field but not the visual, so the deduction ran
+  against the new name and produced a different icon. The rename now **freezes** the icon/colour
+  (via `visualDeCategoria`) into config before saving.
+
+The confirm dialog no longer promises a movement count it can't know from a cold cache. After a
+successful rename the movements cache is invalidated so the list reflects the new name.
+
+**Note:** this fixes renames from here on. A category renamed under v2.104.0 already has its old
+movements stranded — renaming it again (now) migrates them correctly.
+
+---
+
 ## [2.104.1] — 2026-07-24
 
 ### Security — dependency updates (0 vulnerabilities)
