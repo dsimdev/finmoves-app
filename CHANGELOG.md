@@ -4,6 +4,23 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.104.1] — 2026-07-24
+
+### Security — dependency updates (0 vulnerabilities)
+`npm audit` reported 14 vulnerabilities in production dependencies (5 high). All cleared.
+
+- **Next.js 16.2.7 → 16.2.12** (patch, no breaking changes): fixes SSRF in Server Actions,
+  middleware/proxy bypass in App Router, cache confusion, and DoS via the image optimizer. Stayed
+  within 16.2.x on purpose — `npm audit fix --force` wanted to *downgrade* Next to 9.3.3, which is
+  destructive; the safe fix was the patch bump. `eslint-config-next` aligned to 16.2.12.
+- **Transitive deps pinned via `overrides`**: `postcss` 8.5.23 (XSS / path traversal),
+  `brace-expansion` 5.0.8 (DoS), `uuid` 11.1.1, `sharp` 0.35.3. `overrides` rather than a forced
+  fix so the direct deps and Next are untouched.
+- No application code changed — only `package.json` and the lockfile. Build, 331 tests and
+  typecheck all green.
+
+---
+
 ## [2.104.0] — 2026-07-24
 
 ### Added — rename a category (with full migration)
