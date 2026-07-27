@@ -48,29 +48,41 @@ export function useConfig(userId: string | undefined) {
 
     const isExplicitRefresh = version > 0;
 
+    let cancelado = false;
+
     const fetch = async () => {
-      // En carga inicial, usar cache si está fresco (evita 2 lecturas de Firestore)
+      // Carga inicial: mostrar el cache YA (rápido, sin parpadeo) pero SIEMPRE revalidar contra
+      // el servidor en segundo plano. Antes se usaba el cache y se hacía `return` sin verificar:
+      // si config cambiaba en otro dispositivo o por un script (ej. movsRevision, categorías),
+      // la app no se enteraba hasta un refresh explícito → los movimientos no se re-sincronizaban.
       if (!isExplicitRefresh) {
         const cached = loadConfigCache(userId);
         if (cached) {
           setConfig(cached);
           setLoading(false);
-          return;
         }
       }
 
       try {
         const data = await obtenerConfig(userId);
-        setConfig(data);
-        saveConfigCache(userId, data);
+        if (cancelado) return;
+        // Actualizar solo si el server difiere del estado ACTUAL (no del cache que mostramos):
+        // así un patchMeta optimista que haya ocurrido mientras llegaba el fetch NO se pisa si
+        // el server todavía no lo refleja. Comparación por JSON → sin re-render si no cambió.
+        setConfig((actual) => {
+          if (actual && JSON.stringify(actual) === JSON.stringify(data)) return actual;
+          saveConfigCache(userId, data);
+          return data;
+        });
       } catch (err) {
         console.error("Error fetching config:", err);
       } finally {
-        setLoading(false);
+        if (!cancelado) setLoading(false);
       }
     };
 
     fetch();
+    return () => { cancelado = true; };
   }, [userId, version]);
 
   return { config, loading, refresh, patchMeta };

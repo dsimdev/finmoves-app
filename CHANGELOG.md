@@ -4,6 +4,24 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.104.3] — 2026-07-24
+
+### Fixed — config cache never revalidated → data changes didn't show up
+`useConfig` served the localStorage cache on load and **returned without checking the server**.
+So when config changed elsewhere — another device, or a script bumping `movsRevision` / renaming
+a category — the app kept the stale `movsRevision`, and since `useAllMovimientos` re-fetches only
+when that revision advances, movements never re-synced either. This is why a category change
+"wasn't taken" even after reloading: the client was pinned to its cached config.
+
+Now it's stale-while-revalidate: the cache still paints instantly, but the server config is always
+fetched in the background and applied if it differs (compared against current state, so an
+optimistic `patchMeta` in flight isn't clobbered). One extra Firestore read per open — cheap.
+
+(An orphan category "Games" with 89 movements — untouchable from the UI since it wasn't in config —
+was merged into "Subscriptions" via a one-off maintenance script, not part of this build.)
+
+---
+
 ## [2.104.2] — 2026-07-24
 
 ### Fixed — renaming a category left old movements behind and invented an icon
