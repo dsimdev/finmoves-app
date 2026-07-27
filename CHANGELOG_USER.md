@@ -4,6 +4,16 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.104.3] — 2026-07-24
+
+### Arreglado: los cambios ahora se reflejan al abrir la app
+Había un problema por el que, si cambiabas algo (como renombrar o fusionar una categoría) y
+recargabas, la app seguía mostrando lo viejo porque no re-leía la configuración desde el servidor.
+Ahora al abrir la app siempre verifica si hubo cambios y los trae. Si un cambio "no se tomaba"
+aunque recargaras, era esto.
+
+---
+
 ## [2.104.2] — 2026-07-24
 
 ### Arreglado: renombrar una categoría no arrastraba los movimientos viejos
