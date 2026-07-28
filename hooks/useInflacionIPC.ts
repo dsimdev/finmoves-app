@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const LS_KEY = "finmoves.ipc.v2"; // v2: pasa por /api/ipc; invalida cache viejo (roto por CORS)
 const TTL = 24 * 60 * 60 * 1000;
@@ -12,22 +12,30 @@ type IpcEntry = { fecha: string; valor: number }; // "YYYY-MM" → cumulative in
 // ese mes para el IPC (el mes que el período realmente abarca, no el de inicio).
 function periodoIdToYM(periodoId: string): string {
   const [dStr, mStr, yStr] = periodoId.split("/");
-  let d = parseInt(dStr, 10), m = parseInt(mStr, 10), y = parseInt(yStr, 10);
+  const d = parseInt(dStr, 10);
+  let m = parseInt(mStr, 10), y = parseInt(yStr, 10);
   if (d > 15) { m += 1; if (m > 12) { m = 1; y += 1; } }
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 
+// Lee el cache de localStorage si todavía está vigente (TTL). Se usa como inicializador
+// perezoso de useState: hidratar desde cache en el render inicial, no en un efecto — así el
+// setState del efecto queda reservado para cuando SÍ hace falta pedir datos nuevos.
+function cacheVigente(): IpcEntry[] | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const { ts, entries } = JSON.parse(raw) as { ts: number; entries: IpcEntry[] };
+    return Date.now() - ts < TTL ? entries : null;
+  } catch { return null; }
+}
+
 export function useInflacionIPC() {
-  const [data, setData] = useState<IpcEntry[] | null>(null);
+  const [data, setData] = useState<IpcEntry[] | null>(cacheVigente);
+  const yaTeniaCache = useRef(data !== null).current;
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const { ts, entries } = JSON.parse(raw) as { ts: number; entries: IpcEntry[] };
-        if (Date.now() - ts < TTL) { setData(entries); return; }
-      }
-    } catch {}
+    if (yaTeniaCache) return; // el cache ya lo cubrió al montar — solo pedir si hacía falta
 
     // Vía ruta propia /api/ipc: argly no manda CORS y el navegador bloquea el fetch directo.
     // El servidor lo trae sin CORS y lo cachea; acá pegamos al mismo origen.
@@ -46,7 +54,9 @@ export function useInflacionIPC() {
         localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), entries }));
       })
       .catch((e) => { console.warn("[ipc] no se pudo cargar la inflación", e); });
-  }, []);
+    // yaTeniaCache es fijo (useRef tomado en el primer render): correr esto una sola vez al
+    // montar es la intención, por eso se omite de las deps.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deflatar = useCallback(
     (monto: number, periodoId: string): number => {

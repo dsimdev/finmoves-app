@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useData } from "../../data-context";
 import { useT } from "@/hooks/useTranslation";
@@ -26,8 +26,13 @@ export default function DataSettings() {
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [showSyncLog, setShowSyncLog] = useState(false);
   // El sync ya no es automático: el botón "Sincronizar ahora" aparece cuando el backup está
-  // vencido (nunca sincronizó, o pasaron >30 días desde el último).
-  const syncStale = !lastSync || Date.now() - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000;
+  // vencido (nunca sincronizó, o pasaron >30 días desde el último). Se recalcula solo si
+  // `lastSync` cambia — leer el reloj en el cuerpo del render (en vez de en un useMemo) es
+  // impuro y el compilador no puede garantizar que dos renders den el mismo resultado.
+  const syncStale = useMemo(
+    () => !lastSync || Date.now() - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000,
+    [lastSync]
+  );
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [genBusy, setGenBusy] = useState(false);

@@ -17,9 +17,12 @@ export async function GET(
   try {
     const doc = await adminDb().doc(`users/${targetUid}/config/permisosLog`).get();
     const data = doc.data() ?? {};
-    const historial = (data.historial ?? []).map((log: any) => ({
+    type LogEntry = { timestamp?: { toDate?: () => Date } | string | number } & Record<string, unknown>;
+    const historial = ((data.historial ?? []) as LogEntry[]).map((log) => ({
       ...log,
-      timestamp: log.timestamp?.toDate?.() ?? new Date(log.timestamp),
+      timestamp: (typeof log.timestamp === "object" && log.timestamp?.toDate)
+        ? log.timestamp.toDate()
+        : new Date(log.timestamp as string | number),
     }));
     return NextResponse.json({ historial });
   } catch {
