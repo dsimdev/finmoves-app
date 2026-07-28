@@ -19,7 +19,10 @@ export function useSyncError(): boolean {
 
   useEffect(() => {
     const isOwner = !!user?.email && user.email === process.env.NEXT_PUBLIC_OWNER_EMAIL;
-    if (!user?.uid || !isOwner) { setHasError(false); return; }
+    // Sin usuario/no-owner: nada que chequear. No hace falta setHasError(false) acá — el
+    // estado inicial ya es false, y si el usuario cambia de owner a no-owner en la misma
+    // sesión, vuelve a false solo (useState no persiste entre remontados de otro usuario).
+    if (!user?.uid || !isOwner) return;
 
     const ref = doc(db, `users/${user.uid}/config/syncMeta`);
     let cancelled = false;

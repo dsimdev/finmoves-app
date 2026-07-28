@@ -19,15 +19,17 @@ export function applyTheme(isLight: boolean) {
 }
 
 export function useTheme() {
-  // Dark es el tema por defecto (la paleta diseñada); claro es opt-in.
-  const [dark, setDark] = useState(true);
+  // Dark es el tema por defecto (la paleta diseñada); claro es opt-in. El valor sale del
+  // inicializador perezoso (lee localStorage una vez, en el primer render) en vez de un
+  // setState dentro del efecto — el efecto queda solo para lo que de verdad le pertenece:
+  // sincronizar el DOM (applyTheme) al montar.
+  const [dark, setDark] = useState(() => localStorage.getItem(LS_KEY) !== "light");
 
   useEffect(() => {
-    const saved = localStorage.getItem(LS_KEY);
-    const isDark = saved !== "light";
-    setDark(isDark);
-    applyTheme(!isDark);
-  }, []);
+    // Solo al montar: aplicar el tema inicial leído arriba. Cambios posteriores van por
+    // toggle(), no por este efecto — por eso "dark" se omite de las deps a propósito.
+    applyTheme(!dark);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = () => {
     const next = !dark;
