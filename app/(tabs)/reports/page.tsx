@@ -18,6 +18,7 @@ import { db } from "@/services/firebase/firebase";
 import { agruparPorPeriodo, gastosPorCategoria } from "@/utils/periodo";
 import { agruparGastosPorDescripcion } from "@/utils/agrupar-gastos";
 import { ahoraAR } from "@/utils/fecha-ar";
+import { balancePresupuesto } from "@/utils/presupuesto-tope";
 import { obtenerPresupuesto, guardarPresupuesto } from "@/services/firebase/presupuestos";
 import { useMoney } from "@/hooks/useHideValues";
 import {
@@ -932,6 +933,34 @@ export default function ReportesPage() {
             <span style={{ marginLeft: 8, color: "var(--accent)" }}>· {t.budgetTemplate}</span>
           )}
         </div>
+
+        {/* Indicador contra el ingreso: barra "distribuido vs sueldo" + remanente. El ingreso de
+            referencia es sueldo + retiros de ahorro (totalIngresos), no solo el sueldo. */}
+        {(() => {
+          const ingreso = periodo ? periodo.sueldo + periodo.moveDisponible : 0;
+          const montos: Record<string, number> = {};
+          for (const [cat, val] of Object.entries(editingBudget)) { const n = parseFloat(val); if (!isNaN(n) && n > 0) montos[cat] = n; }
+          const bal = balancePresupuesto(montos, ingreso);
+          if (bal.sueldo === 0) return null; // sin sueldo en el período, no hay contra qué comparar
+          const pct = Math.min(100, Math.round(bal.fraccion * 100));
+          const colorBarra = bal.excede ? "var(--red)" : bal.fraccion > 0.9 ? "var(--yellow)" : "var(--green)";
+          return (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, fontSize: 12 }}>
+                <span style={{ color: "var(--muted)" }}>{t.budgetDistributed} <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>{oculto ? "••" : money(bal.distribuido)}</span> {t.budgetOfIncome(oculto ? "••" : money(bal.sueldo))}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 6, background: "var(--faint)", overflow: "hidden" }}>
+                <div style={{ width: `${pct}%`, height: "100%", background: colorBarra, transition: "width .3s ease, background .2s" }} />
+              </div>
+              <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", color: bal.excede ? "var(--red)" : "var(--green)" }}>
+                {bal.excede
+                  ? `${t.budgetOver} ${oculto ? "••" : money(bal.excedente)}`
+                  : `${t.budgetRemaining} ${oculto ? "••" : money(bal.restante)}`}
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
           {catsEditables.map((cat) => (
             <div key={cat} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -958,29 +987,34 @@ export default function ReportesPage() {
             const savedVal = Math.round(saved[cat] ?? 0);
             return editVal !== savedVal;
           });
-          const disabled = budgetSaving || !budgetIsDirty;
+          // Tope DURO: no se puede guardar un presupuesto que supere el ingreso del período.
+          const ingreso = periodo ? periodo.sueldo + periodo.moveDisponible : 0;
+          const montos: Record<string, number> = {};
+          for (const [cat, val] of Object.entries(editingBudget)) { const n = parseFloat(val); if (!isNaN(n) && n > 0) montos[cat] = n; }
+          const bal = balancePresupuesto(montos, ingreso);
+          const disabled = budgetSaving || !budgetIsDirty || bal.excede;
           return (
-            <button
-              disabled={disabled}
-              onClick={async () => {
-                if (!user?.uid || !activos[0]) return;
-                setBudgetSaving(true);
-                try {
-                  const categorias: Record<string, number> = {};
-                  for (const [cat, val] of Object.entries(editingBudget)) {
-                    const n = parseFloat(val);
-                    if (!isNaN(n) && n > 0) categorias[cat] = n;
+            <>
+              {bal.excede && (
+                <div style={{ fontSize: 12, color: "var(--red)", textAlign: "center", marginBottom: 10, fontWeight: 600 }}>{t.budgetCapReached}</div>
+              )}
+              <button
+                disabled={disabled}
+                onClick={async () => {
+                  if (!user?.uid || !activos[0] || bal.excede) return;
+                  setBudgetSaving(true);
+                  try {
+                    await guardarPresupuesto(user.uid, activos[0], montos);
+                    setPresupuesto(montos);
+                    setModalBudget(false);
+                  } finally {
+                    setBudgetSaving(false);
                   }
-                  await guardarPresupuesto(user.uid, activos[0], categorias);
-                  setPresupuesto(categorias);
-                  setModalBudget(false);
-                } finally {
-                  setBudgetSaving(false);
-                }
-              }}
-              style={{ width: "100%", padding: "14px 0", borderRadius: "var(--radius-sm)", background: "var(--accent)", border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1, transition: "opacity 0.2s" }}>
-              {budgetSaving ? "…" : t.save}
-            </button>
+                }}
+                style={{ width: "100%", padding: "14px 0", borderRadius: "var(--radius-sm)", background: "var(--accent)", border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1, transition: "opacity 0.2s" }}>
+                {budgetSaving ? "…" : t.save}
+              </button>
+            </>
           );
         })()}
       </BottomSheet>

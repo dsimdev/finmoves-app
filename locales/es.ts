@@ -636,6 +636,12 @@ export const es = {
   budgetPeriod: "Presupuesto del período",
   budgetTemplate: "Template por defecto",
   budgetTemplateSub: "Se pre-carga al editar el presupuesto de cada período",
+  budgetDistributed: "Distribuido",
+  budgetRemaining: "Te queda",
+  budgetOver: "Te pasaste",
+  budgetOfIncome: (n: string) => `de ${n}`,
+  budgetCapReached: "Llegaste al tope de tu ingreso",
+  budgetTemplateOverLast: (n: string) => `Supera tu último sueldo (${n})`,
   editBudget: "Editar presupuesto",
   settingsTabBudgets: "Presupuestos",
 };

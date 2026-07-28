@@ -638,6 +638,12 @@ export const en: AppLocale = {
   budgetPeriod: "Period budget",
   budgetTemplate: "Default template",
   budgetTemplateSub: "Pre-loaded when editing the budget of each period",
+  budgetDistributed: "Allocated",
+  budgetRemaining: "Left",
+  budgetOver: "Over by",
+  budgetOfIncome: (n: string) => `of ${n}`,
+  budgetCapReached: "You've reached your income cap",
+  budgetTemplateOverLast: (n: string) => `Exceeds your last salary (${n})`,
   editBudget: "Edit budget",
   settingsTabBudgets: "Budgets",
 };

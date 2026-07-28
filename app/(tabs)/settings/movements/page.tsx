@@ -14,6 +14,9 @@ import { CategoriaIcono, CategoriaGlifo } from "@/components/ui/CategoriaIcono";
 import { visualDeCategoria, ICONOS_LISTA, COLORES_LISTA, COLORES_CATEGORIA } from "@/utils/categoria-visual";
 import { validarRename } from "@/utils/rename-categoria";
 import { renombrarCategoria } from "@/services/firebase/rename-categoria";
+import { balancePresupuesto } from "@/utils/presupuesto-tope";
+import { agruparPorPeriodo } from "@/utils/periodo";
+import { useMoney } from "@/hooks/useHideValues";
 import { Toggle, SubHeader } from "../_shared";
 
 // Fila editable: nombre + switch activar/desactivar + borrar.
@@ -38,6 +41,14 @@ export default function MovementsSettings() {
   const { user } = useAuth();
   const { config, refreshConfig: refresh, refresh: refreshMovimientos, movimientos, loading: movsLoading } = useData();
   const t = useT();
+  const { oculto, m: money } = useMoney();
+
+  // Último sueldo conocido (período más reciente con sueldo > 0), para el aviso BLANDO del
+  // template. El template es genérico (no vive en un período), así que solo se avisa, no bloquea.
+  const ultimoSueldo = useMemo(() => {
+    for (const p of agruparPorPeriodo(movimientos)) if (p.sueldo > 0) return p.sueldo;
+    return 0;
+  }, [movimientos]);
 
   const [guardando, setGuardando] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -228,6 +239,31 @@ export default function MovementsSettings() {
       <div style={card}>
         <div className="label" style={{ marginBottom: 4 }}>{t.budgetTemplate}</div>
         <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 16 }}>{t.budgetTemplateSub}</div>
+
+        {/* Indicador BLANDO contra el último sueldo conocido: barra + remanente. No bloquea el
+            guardado (el template es genérico, no vive en un período); solo orienta. */}
+        {(() => {
+          const montos: Record<string, number> = {};
+          for (const [cat, val] of Object.entries(localTemplate)) { const n = parseFloat(val); if (!isNaN(n) && n > 0) montos[cat] = n; }
+          const bal = balancePresupuesto(montos, ultimoSueldo);
+          if (bal.sueldo === 0) return null; // sin sueldo histórico, no hay referencia
+          const pct = Math.min(100, Math.round(bal.fraccion * 100));
+          const colorBarra = bal.excede ? "var(--red)" : bal.fraccion > 0.9 ? "var(--yellow)" : "var(--green)";
+          return (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
+                {t.budgetDistributed} <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>{oculto ? "••" : money(bal.distribuido)}</span> {t.budgetOfIncome(oculto ? "••" : money(bal.sueldo))}
+              </div>
+              <div style={{ height: 8, borderRadius: 6, background: "var(--faint)", overflow: "hidden" }}>
+                <div style={{ width: `${pct}%`, height: "100%", background: colorBarra, transition: "width .3s ease, background .2s" }} />
+              </div>
+              {bal.excede && (
+                <div style={{ marginTop: 6, fontSize: 12, color: "var(--red)", fontWeight: 600 }}>{t.budgetTemplateOverLast(oculto ? "••" : money(bal.sueldo))}</div>
+              )}
+            </div>
+          );
+        })()}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           {presupuestoCats.map((c) => (
             <div key={c.nombre} style={{ display: "flex", alignItems: "center", gap: 10 }}>
