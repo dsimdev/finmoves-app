@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { formatARS, formatMoney } from "@/utils/periodo";
+import { formatMoney } from "@/utils/periodo";
 import { useAppPrefs } from "@/hooks/useAppPrefs";
 
 const KEY = "finmoves_hide";

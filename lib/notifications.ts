@@ -5,6 +5,7 @@ import { parsePeriodoId } from "@/utils/reportes";
 import { shouldRemind, type RecReminderState } from "@/utils/recurrent-reminder";
 import { categoriasEnRiesgo, partirPorEstado } from "@/utils/budget-alert";
 import { avanzarHastaFutura } from "@/utils/recordatorio-repeat";
+import { fechaISO_AR, fechaISO_AR_haceDias } from "@/utils/fecha-ar";
 import { Timestamp } from "firebase-admin/firestore";
 import type { Movimiento, ConfigUsuario } from "@/types";
 
@@ -17,18 +18,6 @@ const CARGA_OLVIDADA_DIAS = 3;   // días sin registrar ningún movimiento
 // Los umbrales del esquema (25 / 28 / semanal) viven en utils/recurrent-reminder.
 const RECURRENTE_LOOKBACK_DIAS = 40;
 
-// Fecha de hoy en AR (UTC-3) como YYYY-MM-DD, para comparar contra recordatorios.
-function hoyAR(): string {
-  const ar = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  return ar.toISOString().slice(0, 10);
-}
-
-// YYYY-MM-DD (AR) de hace N días — para acotar lecturas por fecha del evento.
-function isoHaceDiasAR(dias: number): string {
-  const ar = new Date(Date.now() - 3 * 60 * 60 * 1000 - dias * 86_400_000);
-  return ar.toISOString().slice(0, 10);
-}
-
 // Días entre dos fechas YYYY-MM-DD (b - a), en días enteros.
 function diasEntre(a: string, b: string): number {
   const [ay, am, ad] = a.split("-").map(Number);
@@ -38,7 +27,6 @@ function diasEntre(a: string, b: string): number {
 
 const PRE_AVISO_DIAS = 3; // pre-aviso cuando faltan <= 3 días
 
-const money = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
 // Acción "Cargar" para los avisos que invitan a registrar un movimiento: abre directo
 // el modal de alta (deep-link ?nuevo=1). El toque del cuerpo va al listado normal.
@@ -99,7 +87,7 @@ async function notifyUser(uid: string, ctx: GlobalCtx): Promise<void> {
     // Los checks basados en movimientos corren UNA vez por día (no en cada corrida del
     // cron): son recordatorios diarios por naturaleza. El dólar/versión sí corren en
     // cada corrida (arriba) porque no leen movimientos. Esto baja las lecturas 4×→1×.
-    const hoy = hoyAR();
+    const hoy = fechaISO_AR();
     if (notify.lastDailyRun !== hoy) {
       const config = (await adminDb().doc(`users/${uid}/config/meta`).get()).data() as ConfigUsuario | undefined;
       if (config) {
@@ -184,7 +172,7 @@ async function checkCargaOlvidada(uid: string, movs: Movimiento[], notify: Recor
   const ultimo = movs[0].timestampCarga as Date; // más reciente (orden desc)
   const dias = Math.floor((Date.now() - ultimo.getTime()) / 86_400_000);
   if (dias < CARGA_OLVIDADA_DIAS) return;
-  const hoy = hoyAR();
+  const hoy = fechaISO_AR();
   const last = notify.cargaLastNotified as string | undefined;
   // Ya avisé hoy, o hace menos de CARGA_OLVIDADA_DIAS → esperar.
   if (last && diasEntre(last, hoy) < CARGA_OLVIDADA_DIAS) return;
@@ -196,7 +184,7 @@ async function checkCargaOlvidada(uid: string, movs: Movimiento[], notify: Recor
 //  1) Pre-aviso cuando faltan ≤3 días ("en unos días…"), una sola vez (flag avisadoPre).
 //  2) El día (o pasado), aviso final y BORRA el recordatorio.
 async function checkRecordatorios(uid: string) {
-  const hoy = hoyAR();
+  const hoy = fechaISO_AR();
   // Sin filtro por fecha: los VENCIDOS también tienen que entrar (si el push falló o el
   // cron no corrió ese día, el doc se conservó y hay que reintentarlo; con `fecha >= hoy`
   // quedaban excluidos para siempre). La colección solo guarda pendientes (el aviso
@@ -245,14 +233,14 @@ async function checkRecurrentes(uid: string, notify: Record<string, unknown>, up
 
   // Ventana por FECHA del evento: una sola query, index-free y robusta al volumen. Cubre
   // el umbral (28d) con margen para hallar la última carga. `fecha` se guarda como YYYY-MM-DD.
-  const desde = isoHaceDiasAR(RECURRENTE_LOOKBACK_DIAS);
+  const desde = fechaISO_AR_haceDias(RECURRENTE_LOOKBACK_DIAS);
   const movsSnap = await adminDb()
     .collection(`users/${uid}/movimientos`)
     .where("fecha", ">=", desde)
     .get();
   const movs = movsSnap.docs.map((d) => d.data() as Movimiento);
 
-  const hoy = hoyAR();
+  const hoy = fechaISO_AR();
   const reminders = (notify.recReminders as Record<string, RecReminderState>) ?? {};
   const activeIds = new Set(recSnap.docs.map((d) => d.id));
   // Limpieza: descartar del dedup las claves de templates borrados/inactivos (no crecer sin fin).
@@ -277,7 +265,7 @@ async function checkRecurrentes(uid: string, notify: Record<string, unknown>, up
     }
     // Referencia = última carga, o createdAt si nunca se cargó (recurrente nuevo). Si no hay
     // ninguna de las dos (raro), se saltea.
-    const ref = ultima || (r.createdAt ? new Date(r.createdAt - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : "");
+    const ref = ultima || (r.createdAt ? fechaISO_AR(r.createdAt) : "");
     if (!ref) continue;
 
     const nuevo = shouldRemind(ref, hoy, reminders[d.id]);
@@ -309,7 +297,7 @@ async function checkRecurrentes(uid: string, notify: Record<string, unknown>, up
 // El botón vive en Reportes y se ofrece del 26/12 al 5/1; este push es el empujón del día.
 // Dedup por año (wrappedNotifiedYear) → si el cron corre varias veces ese día, avisa una sola.
 async function checkWrapped(uid: string, movs: Movimiento[], notify: Record<string, unknown>, updates: Record<string, unknown>) {
-  const hoy = hoyAR();                 // YYYY-MM-DD (AR)
+  const hoy = fechaISO_AR();                 // YYYY-MM-DD (AR)
   if (hoy.slice(5) !== "12-31") return; // solo el 31/12
   const año = hoy.slice(0, 4);
   if (notify.wrappedNotifiedYear === año) return; // ya avisé este año

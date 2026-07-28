@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useData } from "../../data-context";
 import { useAppPrefs } from "@/hooks/useAppPrefs";
 import { useT } from "@/hooks/useTranslation";
-import { db, auth } from "@/services/firebase/firebase";
+import { auth } from "@/services/firebase/firebase";
 import { signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, getIdToken } from "firebase/auth";
 import { linkGoogle, isGoogleLinked } from "@/lib/google-auth";
 import { platformAuthenticatorAvailable, isBiometricEnabledFor, registerBiometric, clearBiometric } from "@/lib/biometric";

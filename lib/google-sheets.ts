@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import * as fs from "fs";
 import * as path from "path";
+import { ahoraAR } from "@/utils/fecha-ar";
 
 // ID de la hoja del env como FALLBACK. El ID vigente vive en Firestore
 // (syncMeta.spreadsheetId): si la hoja se borra, el sync crea una nueva y guarda su ID ahí.
@@ -81,7 +82,7 @@ export async function getSheetName(sheets: SheetsClient, spreadsheetId: string):
 
 // Nombre de backup ordenable cronológicamente: "_bak 2026-06-06 14-30-00" (hora AR)
 function backupName(): string {
-  const ar = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const ar = ahoraAR();
   const p = (n: number) => n.toString().padStart(2, "0");
   return `${BACKUP_PREFIX}${ar.getUTCFullYear()}-${p(ar.getUTCMonth() + 1)}-${p(ar.getUTCDate())} ${p(ar.getUTCHours())}-${p(ar.getUTCMinutes())}-${p(ar.getUTCSeconds())}`;
 }

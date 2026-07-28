@@ -1,4 +1,3 @@
-import type { TipoMovimiento } from "@/types";
 
 // Derivaciones del tipo de movimiento y del cálculo FX. Vivían inline en MovementModal como
 // ~15 booleanos sueltos; acá son puras y testeables. Es la zona con más bugs históricos del
