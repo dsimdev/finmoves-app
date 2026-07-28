@@ -4,6 +4,20 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.105.0] — 2026-07-24
+
+### El presupuesto no te deja distribuir más de lo que ganás
+Ahora, al armar el presupuesto, ves **cuánto de tu ingreso ya distribuiste y cuánto te queda** —
+con una barra que se pone verde, amarilla o roja según cuánto ocupaste. Así podés ajustar los
+gastos a lo que entra.
+
+- **Presupuesto del período (Reportes):** no te deja guardar si la suma pasa tu ingreso del mes
+  (sueldo + retiros de ahorro). Te avisa "te queda $X" o, si te pasás, "llegaste al tope".
+- **Template por defecto (Ajustes → Movimientos):** la misma barra, pero acá solo te avisa si
+  superás tu último sueldo (no te bloquea, porque el template es general y no es de un mes puntual).
+
+---
+
 ## [2.104.4] — 2026-07-24
 
 Mejoras internas y de seguridad. Sin cambios visibles.

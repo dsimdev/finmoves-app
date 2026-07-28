@@ -4,6 +4,24 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.105.0] — 2026-07-24
+
+### Added — budget can't allocate more than your income
+The budget now shows how much of your income you've allocated and how much is left, so you can fit
+spending to what comes in. New `utils/presupuesto-tope.ts` (`balancePresupuesto`, `topeCategoria`,
+11 tests) computes allocated / remaining / over-by against a reference income.
+
+- **Period budget (Reports)** — a "distributed vs income" bar sits above the categories (green,
+  yellow past 90%, red over), with **"Left $X"** / **"Over by $X"** below. The reference income is
+  the period's real salary **plus** savings withdrawals (`sueldo + moveDisponible`). **Hard cap**:
+  Save is disabled while the total exceeds income, with "You've reached your income cap".
+- **Default template (Settings → Movements)** — the same bar, but a **soft warning** against your
+  *last known salary*. It doesn't block saving, because the template is generic and isn't tied to
+  a specific period's income.
+- Both indicators respect the hide-values toggle.
+
+---
+
 ## [2.104.4] — 2026-07-24
 
 ### Changed — AR date logic centralized (`utils/fecha-ar.ts`)
