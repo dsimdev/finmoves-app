@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 
 /**
  * Card flotante centrada (portal + overlay oscuro). A diferencia del BottomSheet, no
@@ -18,8 +19,7 @@ export function CenterCard({ open, onClose, title, titleColor, children, maxWidt
   children: React.ReactNode;
   maxWidth?: number;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   useScrollLock(open);
   useModalBack(open, onClose);
   useEffect(() => {

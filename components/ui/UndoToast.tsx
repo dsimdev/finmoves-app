@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useMounted } from "@/hooks/useMounted";
 
 // Aviso con acción de deshacer, para operaciones destructivas que ya se ejecutaron (borrado en
 // lote). Se auto-cierra: si no se toca "Deshacer" en unos segundos, la acción queda firme.
@@ -17,8 +18,7 @@ export function UndoToast({ mensaje, accion, duracionMs = 6000, onUndo, onDismis
   onUndo: () => void;
   onDismiss: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
 
   useEffect(() => {
     const id = setTimeout(onDismiss, duracionMs);

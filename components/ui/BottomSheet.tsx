@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useMounted } from "@/hooks/useMounted";
 
 /**
  * Bottom-sheet genérico y arrastrable (patrón único de la app):
@@ -24,8 +25,7 @@ export function BottomSheet({ open, onClose, title, children }: {
   const [dragging, setDragging] = useState(false);
   // Portal a <body>: evita que un ancestro con transform (p.ej. la animación
   // .fade-up con fill `both`) capture el position:fixed y descoloque el modal.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   useScrollLock(open);
   useModalBack(open, onClose);
   // En escritorio el sheet se muestra como card centrada (ver el panel más abajo).
@@ -41,7 +41,13 @@ export function BottomSheet({ open, onClose, title, children }: {
   const tyRef = useRef(0);
 
   useEffect(() => { tyRef.current = ty; }, [ty]);
-  useEffect(() => { if (open) setTy(0); }, [open]);
+  // Resetear `ty` al reabrir. El patrón "ajustar durante el render" que React sugiere para
+  // esto requeriría mutar un ref en el cuerpo del render, y el compiler de este proyecto lo
+  // rechaza (react-hooks/refs) — el sheet tampoco puede remontar por `key` sin perder el resto
+  // de su estado interno entre aperturas. El efecto sincroniza con la prop `open`, que es
+  // justamente lo que un efecto debe hacer; se documenta la excepción en vez de forzar un
+  // patrón que el linter del proyecto no permite.
+  useEffect(() => { if (open) setTy(0); }, [open]); // eslint-disable-line react-hooks/set-state-in-effect
 
   // Arrastre desde el cuerpo con listeners nativos no-pasivos: mantener apretado
   // ~280ms en cualquier parte entra en modo arrastre y, con preventDefault, frena el
