@@ -1,7 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import type { Movimiento } from "@/types";
 import { CategoriaIcono } from "@/components/ui/CategoriaIcono";
+import { MediaViewer } from "@/components/ui/MediaViewer";
+import { useComprobante } from "./useComprobante";
+import { ComprobanteChooser } from "./ComprobanteChooser";
+import { useT } from "@/hooks/useTranslation";
+import { useState } from "react";
 
 // Piezas compartidas por las vistas del MovementModal (detalle, reserva, edición).
 // Vivían duplicadas dentro del modal: el héroe y los campos del detalle estaban escritos
@@ -191,5 +197,62 @@ export function ComprobanteButton({ movimiento, label, onOpen }: {
       style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px 14px", marginBottom: 4, border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "none", color: "var(--accent)", fontSize: 13, cursor: "pointer" }}>
       📎 {label}
     </button>
+  );
+}
+
+// ── Campo de comprobante (ícono compacto): hook + ícono + chooser + visor en una sola
+// unidad. Alta y Edición instancian CADA UNA la suya (ciclos de vida independientes) — ver
+// plan de split del modal. `onChange` avisa al padre el file/removed actual para el submit;
+// `resetKey` fuerza el reset interno cuando el padre reabre con otro movimiento/vista.
+export function ComprobanteField({ existingUrl, resetKey, onChange }: {
+  /** Comprobante ya guardado (edición). Sin esto, es alta: nunca hay "existing". */
+  existingUrl?: string;
+  /** Cambia cuando el padre reabre con otro movimiento: dispara el reset interno. */
+  resetKey: string | number;
+  onChange: (v: { file: File | null; removed: boolean }) => void;
+}) {
+  const t = useT();
+  const {
+    file, preview, removed, viewer, setViewer, reset, onSelect, clear,
+  } = useComprobante();
+  const [chooserAnchor, setChooserAnchor] = useState<DOMRect | null>(null);
+
+  useEffect(() => { reset(); }, [resetKey]); // eslint-disable-line react-hooks/exhaustive-deps -- reset es estable (setters de useState), solo debe correr cuando cambia resetKey
+  useEffect(() => { onChange({ file, removed }); }, [file, removed, onChange]);
+
+  const box: React.CSSProperties = { width: 38, height: 38, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, textDecoration: "none", border: "1px solid var(--border)", background: "var(--surface-alt)", color: "var(--muted)" };
+  const thumbImg: React.CSSProperties = { width: 38, height: 38, borderRadius: 8, objectFit: "cover", border: "1px solid var(--border)", display: "block" };
+  const removeHit: React.CSSProperties = { position: "absolute", top: -12, right: -12, width: 32, height: 32, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
+  const removeGlyph: React.CSSProperties = { width: 18, height: 18, borderRadius: "50%", background: "var(--red)", color: "#fff", border: "1.5px solid var(--bg)", fontSize: 11, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" };
+  const pdfIcon = <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>;
+  const newIsPdf = file?.type === "application/pdf";
+  const existingIsPdf = !!existingUrl && existingUrl.toLowerCase().includes(".pdf");
+  const showExisting = !!existingUrl && !removed && !preview;
+
+  return (
+    <>
+      {preview ? (
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          {newIsPdf
+            ? <button type="button" onClick={() => setViewer({ src: preview, isPdf: true })} style={{ ...box, cursor: "pointer" }}>{pdfIcon}</button>
+            : <button type="button" onClick={() => setViewer({ src: preview, isPdf: false })} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}><img src={preview} alt="" style={thumbImg} /></button>}
+          <button type="button" onClick={clear} aria-label={t.removeReceipt} style={removeHit}><span style={removeGlyph}>×</span></button>
+        </div>
+      ) : showExisting ? (
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          {existingIsPdf
+            ? <button type="button" onClick={() => setViewer({ src: existingUrl!, isPdf: true })} style={{ ...box, cursor: "pointer" }}>{pdfIcon}</button>
+            : <button type="button" onClick={() => setViewer({ src: existingUrl!, isPdf: false })} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}><img src={existingUrl} alt="" style={thumbImg} /></button>}
+          <button type="button" onClick={clear} aria-label={t.removeReceipt} style={removeHit}><span style={removeGlyph}>×</span></button>
+        </div>
+      ) : (
+        <button type="button" aria-label={t.attachReceipt} title={t.attachReceipt} onClick={(e) => setChooserAnchor(e.currentTarget.getBoundingClientRect())}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 46, height: 46, color: "var(--muted)", cursor: "pointer", flexShrink: 0, background: "none", border: "none", padding: 0 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+      )}
+      <ComprobanteChooser anchor={chooserAnchor} onClose={() => setChooserAnchor(null)} onSelect={onSelect} />
+      {viewer && <MediaViewer src={viewer.src} isPdf={viewer.isPdf} onClose={() => setViewer(null)} />}
+    </>
   );
 }

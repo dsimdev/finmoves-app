@@ -11,20 +11,17 @@ import { upsertRecurrente } from "@/services/firebase/recurrentes";
 import { recurrentKey } from "@/utils/recurrent-key";
 import { crearPlantilla, eliminarPlantilla, usarPlantilla, type Plantilla } from "@/services/firebase/plantillas";
 import { useData } from "@/app/(tabs)/data-context";
-import { uploadComprobante, deleteComprobante } from "@/lib/storage";
+import { uploadComprobante } from "@/lib/storage";
 import { useComprobante } from "./useComprobante";
 import { useAddForm } from "./useAddForm";
 import { ComprobanteChooser } from "./ComprobanteChooser";
 import { MediaViewer } from "@/components/ui/MediaViewer";
-import { Loader } from "@/components/ui/Loader";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { CenterCard } from "@/components/ui/CenterCard";
 import { BottomSheet as Sheet } from "@/components/ui/BottomSheet";
-import { agruparPorPeriodo, formatARS, fechaCorta, fechaAPeriodoId } from "@/utils/periodo";
+import { agruparPorPeriodo, formatARS, fechaAPeriodoId } from "@/utils/periodo";
 import { serieTendencia } from "@/utils/reportes";
 import { reservaFX } from "@/utils/reserva";
 import { fxFlags, calcularFX, num } from "@/utils/movement-fx";
-import { esMovimientoFX, monedaMovFX } from "./movement-shared";
 import { MovementDetail } from "./MovementEditDetail";
 import { MovementDelete } from "./MovementDelete";
 import { Movimiento, TipoMovimiento, ConfigUsuario } from "@/types";
@@ -93,11 +90,10 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
   const ahorrosAcumActivo = serie.find((s) => s.periodoId === activeId)?.ahorrosAcum ?? 0;
   const sinPeriodos = periodos.length === 0;
 
-  // "detail" = detalle solo-lectura (paso previo a editar); "form" = edición (misma card);
-  // "delete" = confirmación de borrado. El tap en una fila abre "detail"; Editar → "form".
-  // Default "detail" (no "form"): en edición siempre se entra por el detalle, y evita que
-  // el primer render (antes de que corra el efecto de apertura) muestre el form por error.
-  const [view, setView] = useState<"detail" | "form" | "delete">("detail");
+  // "editDetail" = detalle/edición (MovementDetail decide la sub-vista); "delete" =
+  // confirmación de borrado. Solo distingue lo que este padre necesita para elegir A CUÁL
+  // de los 2 hijos mostrar; detail↔form es interno a MovementDetail (vía su initialView).
+  const [view, setView] = useState<"editDetail" | "delete">("editDetail");
 
   // ── Add state (hook dedicado: 15 campos + reset) ──
   const {
@@ -185,14 +181,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
   const [addError, setAddError] = useState("");
   // Sin autofocus en el monto: abrir el modal no debe levantar el teclado solo.
 
-  // ── Edit state ──
-  const [eMonto, setEMonto] = useState("");
-  const [eDesc, setEDesc] = useState("");
-  const [eMedio, setEMedio] = useState("");
-  const [eObs, setEObs] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState("");
-
   // Plantillas de gasto frecuente (del DataProvider, se leen 1×/sesión).
   const [tplDelete, setTplDelete] = useState<Plantilla | null>(null);
   const [tplSavedFlash, setTplSavedFlash] = useState(false);
@@ -205,41 +193,38 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
     resetComprobante();
   };
 
-  // Inicializar al abrir según el modo.
+  // Inicializar el alta al abrir (deps propias: no le importan movimiento/initialView).
   useEffect(() => {
-    if (!open) return;
-    if (mode === "add") {
-      setView("form");
-      resetAdd();
-      // Tipo inicial según el modo, y encima el prefill del recurrente (que pre-carga todo
-      // menos el monto). Un solo parche: antes eran hasta 6 setters encadenados.
-      setAddFields({
-        ...(reserveMode
-          ? { tipo: (esEURMode ? "CompraEUR" : "CompraUSD") as TipoMovimiento }
-          : sinPeriodos
-          ? { tipo: "Ingreso" as TipoMovimiento, categoria: "Sueldo" }
-          : { tipo: "Gasto" as TipoMovimiento }),
-        ...(prefill?.tipo ? { tipo: prefill.tipo } : {}),
-        ...(prefill?.categoria ? { categoria: prefill.categoria } : {}),
-        ...(prefill?.descripcion ? { descripcion: prefill.descripcion } : {}),
-        ...(prefill?.observaciones ? { observaciones: prefill.observaciones } : {}),
-      });
-    } else if (mode === "edit" && movimiento) {
-      // El sueldo que abre período (ancla) no se puede borrar → nunca abrir en "delete".
-      const esAncla = movimiento.tipo === "Ingreso" && movimiento.categoria === "Sueldo" &&
-        fechaAPeriodoId(movimiento.fecha) === movimiento.periodoId;
-      // Tap en la fila → detalle. Swipe/long-press (initialView="delete") → confirmación
-      // directa. Detalle solo-lectura como paso previo a editar (evita ediciones accidentales).
-      setView(initialView === "delete" && !esAncla ? "delete" : initialView === "form" ? "form" : "detail");
-      setEMonto(String(movimiento.monto));
-      setEDesc(movimiento.descripcion || (movimiento as Movimiento & { origenAhorro?: string }).origenAhorro || "");
-      setEMedio(movimiento.medioPago ?? "");
-      setEObs(movimiento.observaciones ?? "");
-      setEditError("");
-      resetComprobante();
-    }
+    if (!open || mode !== "add") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el form con la prop `open` (reset al abrir), no deriva de otro estado calculable en render
+    resetAdd();
+    // Tipo inicial según el modo, y encima el prefill del recurrente (que pre-carga todo
+    // menos el monto). Un solo parche: antes eran hasta 6 setters encadenados.
+    setAddFields({
+      ...(reserveMode
+        ? { tipo: (esEURMode ? "CompraEUR" : "CompraUSD") as TipoMovimiento }
+        : sinPeriodos
+        ? { tipo: "Ingreso" as TipoMovimiento, categoria: "Sueldo" }
+        : { tipo: "Gasto" as TipoMovimiento }),
+      ...(prefill?.tipo ? { tipo: prefill.tipo } : {}),
+      ...(prefill?.categoria ? { categoria: prefill.categoria } : {}),
+      ...(prefill?.descripcion ? { descripcion: prefill.descripcion } : {}),
+      ...(prefill?.observaciones ? { observaciones: prefill.observaciones } : {}),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mode, movimiento?.id, initialView, prefill]);
+  }, [open, mode, reserveMode, prefill]);
+
+  // Inicializar edición/borrado al abrir: solo decide A CUÁL hijo mostrar (editDetail vs
+  // delete). El resto (repoblar campos, sub-vista detail/form) vive en MovementDetail.
+  useEffect(() => {
+    if (!open || mode !== "edit" || !movimiento) return;
+    // El sueldo que abre período (ancla) no se puede borrar → nunca abrir en "delete".
+    const esAncla = movimiento.tipo === "Ingreso" && movimiento.categoria === "Sueldo" &&
+      fechaAPeriodoId(movimiento.fecha) === movimiento.periodoId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con la prop `open`/`initialView` (a qué hijo mostrar al abrir), no deriva de otro estado calculable en render
+    setView(initialView === "delete" && !esAncla ? "delete" : "editDetail");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo movimiento?.id importa (no el objeto entero, que puede cambiar de referencia en cada render del padre externo)
+  }, [open, mode, movimiento?.id, initialView]);
 
   const aplicarPlantilla = (p: Plantilla) => {
     // Un solo parche (antes eran 6 setters seguidos = 6 renders del form).
@@ -358,12 +343,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
     !!categoria && parseFloat(monto || "0") > 0
   );
 
-  // Un sueldo que ABRE período (su fecha define el periodoId) es el ancla → no se puede
-  // borrar (se chequea en el efecto de apertura). Un sueldo "sumado" al período sí.
-  const isLocked = movimiento ? movimiento.tipo === "Ingreso" && movimiento.categoria === "Sueldo" : false;
-  // Movimiento de reserva (FX): muestra cantidad + cotización en el detalle.
-  const esFXMov = !!movimiento && esMovimientoFX(movimiento);
-  const fxMovLabel = movimiento ? monedaMovFX(movimiento) : "USD";
   // Quién puede adjuntar comprobantes: el dueño siempre, o quien tenga el permiso
   // habilitado por el dueño (default OFF para no-dueños). Ver panel Admin.
   const canComprobante = isOwner || config?.meta.permisos?.comprobantes === true;
@@ -380,14 +359,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d).slice(0, 8);
   }, [movimientos, categoria, tipo]);
-  const isDirtyEdit = !!movimiento && (
-    eMonto !== String(movimiento.monto) ||
-    eDesc !== (movimiento.descripcion ?? "") ||
-    eMedio !== (movimiento.medioPago ?? "") ||
-    eObs !== (movimiento.observaciones ?? "") ||
-    !!comprobanteFile || comprobanteRemoved
-  );
-
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddError("");
@@ -462,33 +433,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
       // Comprobante: subir en background y parchear la URL (recuperable si falla).
       if (file) await subirComprobante(mainId, file);
     })();
-  };
-
-  const handleEdit = async () => {
-    if (!user?.uid || !movimiento) return;
-    setEditLoading(true); setEditError("");
-    try {
-      // Igual que el alta: sin esto, borrar el campo persiste NaN y rompe todos los KPIs.
-      const montoEdit = parseFloat(eMonto);
-      if (!montoEdit || montoEdit <= 0) throw new Error(t.errInvalidAmount);
-      const update: Partial<Movimiento> = { monto: montoEdit, observaciones: eObs, descripcion: eDesc.trim() };
-      if (!isLocked) update.medioPago = eMedio;
-      if (canComprobante) {
-        if (comprobanteFile) {
-          const up = await uploadComprobante(user.uid, comprobanteFile);
-          update.comprobanteUrl = up.url; update.comprobantePath = up.path;
-          await deleteComprobante(movimiento.comprobantePath); // borrar el anterior
-        } else if (comprobanteRemoved && movimiento.comprobanteUrl) {
-          update.comprobanteUrl = ""; update.comprobantePath = "";
-          await deleteComprobante(movimiento.comprobantePath);
-        }
-      }
-      await actualizarMovimiento(user.uid, movimiento.id, update);
-      // Optimista: parchear en memoria en vez de re-leer toda la colección.
-      if (onUpdated) onUpdated(movimiento.id, update); else onChanged();
-      onClose();
-    } catch (err) { console.error(err); setEditError(err instanceof Error ? err.message : t.unexpectedError); }
-    finally { setEditLoading(false); }
   };
 
   // Solo el Sheet de alta usa este title; el detalle/edición/reserva (CenterCard) pasan el suyo.
@@ -906,131 +850,28 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
 
     </Sheet>
 
-    {/* EDICIÓN como CARD (mismo look que el detalle): se abre desde el detalle con el
-        lapicito. "‹ Detalle" vuelve al detalle en la misma card. Antes era un BottomSheet. */}
-    {mode === "edit" && movimiento && !readOnly && (
-      <CenterCard open={open && view === "form"} onClose={onClose} title={t.editMovement}>
-          <button type="button" onClick={() => { setEditError(""); setView("detail"); }} style={{
-            display: "inline-flex", alignItems: "center", gap: 5, marginBottom: 12, padding: "4px 4px 4px 0",
-            background: "none", border: "none", color: "var(--muted)", fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            {t.detail}
-          </button>
-          {recurrenteKeys.has(recKey(movimiento.tipo, movimiento.categoria, movimiento.descripcion, movimiento.observaciones)) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "9px 12px", background: "var(--accent-dim)", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", color: "var(--accent)", fontSize: 12, fontWeight: 600 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" /></svg>
-              {t.recurrentMovement}
-            </div>
-          )}
-          {/* Grid de 3: Tipo · Categoría · Fecha (solo lectura). */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
-            {[{ l: t.type, v: movimiento.tipo }, { l: t.category, v: movimiento.categoria }, { l: t.date, v: fechaCorta(movimiento.fecha) }].map((f) => (
-              <div key={f.l} style={{ background: "var(--surface-alt)", borderRadius: "var(--radius-sm)", padding: "6px 10px", minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>{f.l}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.v}</div>
-              </div>
-            ))}
-          </div>
-          {/* Detalle de reserva (FX): cantidad + cotización, solo lectura. */}
-          {esFXMov && (
-            <div style={{ display: "grid", gridTemplateColumns: movimiento.cotizacion != null ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 14 }}>
-              <div style={{ background: "var(--surface-alt)", borderRadius: "var(--radius-sm)", padding: "6px 10px", minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>{t.quantity}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{fxMovLabel} {movimiento.cantidadUSD?.toFixed(2) ?? "—"}</div>
-              </div>
-              {movimiento.cotizacion != null && (
-                <div style={{ background: "var(--surface-alt)", borderRadius: "var(--radius-sm)", padding: "6px 10px", minWidth: 0 }}>
-                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>{t.exchangeRate}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)" }}>${movimiento.cotizacion.toLocaleString("es-AR")}</div>
-                </div>
-              )}
-            </div>
-          )}
-          {/* Monto (30%) + Descripción (70%) — ambos editables (descripción también en Sueldo). */}
-          <div style={{ display: "grid", gridTemplateColumns: "30% 70%", gap: 10, marginBottom: 14 }}>
-            <div>
-              <div className="label">{t.amount}</div>
-              <input className="input" style={{ fontFamily: "var(--font-mono)" }} type="number" inputMode="decimal" value={eMonto} onChange={(e) => setEMonto(e.target.value)} />
-            </div>
-            <div>
-              <div className="label">{t.description}</div>
-              <input className="input" value={eDesc} onChange={(e) => setEDesc(e.target.value)} />
-            </div>
-          </div>
-          {/* Medio de pago: no aplica al Sueldo (ancla del período). */}
-          {!isLocked && (
-            <div style={{ marginBottom: 14 }}>
-              <div className="label">{t.paymentMethod}</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {/* Misma lista que el alta (medios del usuario); el medio actual del
-                    movimiento se muestra aunque esté desactivado, para no perderlo. */}
-                {[...new Set([...(config?.mediosPago.filter((m) => m.activo).map((m) => m.nombre) ?? []), ...(eMedio ? [eMedio] : [])])].map((m) => (
-                  <button key={m} type="button" onClick={() => setEMedio(m)} className="pill" style={{
-                    borderColor: eMedio === m ? "var(--accent)" : "var(--border)",
-                    background: eMedio === m ? "var(--accent-dim)" : "transparent",
-                    color: eMedio === m ? "var(--accent)" : "var(--muted)",
-                  }}>{m}</button>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Observaciones (70%) + comprobante compacto (30%) en la misma fila */}
-          <div style={{ display: "grid", gridTemplateColumns: canComprobante ? "70% 30%" : "1fr", gap: 10, alignItems: "end", marginBottom: 24 }}>
-            <div>
-              <div className="label">{t.notes}</div>
-              <input className="input" value={eObs} onChange={(e) => setEObs(e.target.value)} />
-            </div>
-            {canComprobante && (
-              <div style={{ display: "flex", justifyContent: "center", paddingBottom: 4 }}>
-                {comprobanteIcon(movimiento.comprobanteUrl)}
-              </div>
-            )}
-          </div>
-
-          {editError && (
-            <div style={{ background: "var(--red-dim)", border: "1px solid var(--red)44", borderRadius: "var(--radius-sm)", padding: 12, marginBottom: 8, fontSize: 12, color: "var(--red)", textAlign: "center" }}>{editError}</div>
-          )}
-          <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", height: 56, marginTop: 8 }}>
-            <button onClick={handleEdit} disabled={!isDirtyEdit || editLoading} aria-label={t.save} style={{
-              width: 56, height: 56, borderRadius: "50%",
-              background: isDirtyEdit ? "var(--green)" : "transparent",
-              border: `2px solid ${isDirtyEdit ? "var(--green)" : "var(--border)"}`,
-              color: isDirtyEdit ? "var(--bg)" : "var(--border)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: isDirtyEdit ? "pointer" : "default",
-              transition: "background 0.2s, border-color 0.2s, color 0.2s",
-              boxShadow: isDirtyEdit ? "0 4px 20px var(--green)55" : "none",
-              opacity: editLoading ? 0.5 : 1,
-            }}>
-              {editLoading
-                ? <Loader size={20} />
-                : <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </button>
-          </div>
-      </CenterCard>
-    )}
-
-    {/* DETALLE (solo lectura) + RESERVA (readOnly desde Inversión): extraído a
-        MovementDetail (MovementEditDetail.tsx). Editar/eliminar son swipe en la lista, no
-        acciones de esta card. */}
+    {/* DETALLE + EDICIÓN (misma card, sub-vista interna) + RESERVA (readOnly desde
+        Inversión): todo en MovementDetail (MovementEditDetail.tsx). Eliminar es swipe/
+        long-press en la lista, no una acción de esta card. */}
     {mode === "edit" && movimiento && !readOnly && (
       <MovementDetail
-        open={open && view === "detail"} movimiento={movimiento} config={config}
-        recurrentes={recurrentes} money={money} onClose={onClose}
+        open={open && view === "editDetail"} movimiento={movimiento} config={config}
+        recurrentes={recurrentes} money={money} uid={user?.uid} isOwner={isOwner}
+        initialView={initialView === "form" ? "form" : "detail"}
+        onClose={onClose} onUpdated={onUpdated} onChanged={onChanged}
       />
     )}
     {readOnly && movimiento && (
       <MovementDetail
-        open={open && view !== "delete"} movimiento={movimiento} config={config}
-        recurrentes={recurrentes} money={money} readOnly onClose={onClose}
+        open={open} movimiento={movimiento} config={config}
+        recurrentes={recurrentes} money={money} readOnly onClose={onClose} onChanged={onChanged}
       />
     )}
     {movimiento && (
       <MovementDelete
         open={open && view === "delete"} movimiento={movimiento} uid={user?.uid}
         entradaDirecta={initialView === "delete"} money={money} onClose={onClose}
-        onBackToDetail={() => setView("detail")} onDeleted={onDeleted} onChanged={onChanged}
+        onBackToDetail={() => setView("editDetail")} onDeleted={onDeleted} onChanged={onChanged}
       />
     )}
     {tplDelete && (
