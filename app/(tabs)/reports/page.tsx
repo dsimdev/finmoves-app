@@ -317,9 +317,13 @@ export default function ReportesPage() {
     updateDoc(doc(db, `users/${user.uid}/config/meta`), { "meta.ahorrosAcumSeedPeriodoId": newSeedId });
   }, [user?.uid, !!config, !!seedPeriodoId, periodos.length]);
 
-  // Cargar presupuesto del período activo (solo si hay un único período seleccionado)
+  // Cargar presupuesto del período activo (solo si hay un único período seleccionado). Al
+  // cambiar de período hay que ir a buscar su presupuesto a Firestore — sincronizar con ese
+  // fetch es el uso de efecto que React documenta como correcto; showBudget se resetea junto
+  // porque el presupuesto mostrado ya no corresponde al período nuevo hasta que llegue.
   const activoPeriodoId = activos.length === 1 ? (activos[0] ?? null) : null;
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowBudget(false);
     if (!user?.uid || !activoPeriodoId) { setPresupuesto(null); return; }
     obtenerPresupuesto(user.uid, activoPeriodoId).then(setPresupuesto).catch(() => setPresupuesto(null));
