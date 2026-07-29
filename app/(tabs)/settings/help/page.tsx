@@ -70,9 +70,14 @@ export default function HelpSettings() {
     if (!changelog) { const res = await fetch("/api/changelog"); setChangelog(await res.text()); }
     setShowChangelog(true);
   };
+  // Deep-link ?changelog=1: reacciona a la URL (un sistema externo), el uso de efecto que
+  // React documenta como correcto — no deriva estado de props/deps que se pueda calcular en
+  // render.
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("changelog") === "1") {
-      openChangelog(); window.history.replaceState(null, "", "/settings/help");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      openChangelog();
+      window.history.replaceState(null, "", "/settings/help");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

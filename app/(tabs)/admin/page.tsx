@@ -58,7 +58,13 @@ export default function AdminPage() {
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
-  useEffect(() => { if (isOwner) load(); }, [isOwner]);
+  // load() llama setLoading(true) ANTES del primer await (mostrar carga desde que arranca) —
+  // el lint lo marca como setState directo en el efecto, pero es el patrón correcto de
+  // "estado de carga antes de una operación async", no el anti-patrón que la regla busca.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isOwner) load();
+  }, [isOwner]);
 
   const generateCode = async () => {
     const u = auth.currentUser;

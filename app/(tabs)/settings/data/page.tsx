@@ -26,12 +26,14 @@ export default function DataSettings() {
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [showSyncLog, setShowSyncLog] = useState(false);
   // El sync ya no es automático: el botón "Sincronizar ahora" aparece cuando el backup está
-  // vencido (nunca sincronizó, o pasaron >30 días desde el último). Se recalcula solo si
-  // `lastSync` cambia — leer el reloj en el cuerpo del render (en vez de en un useMemo) es
-  // impuro y el compilador no puede garantizar que dos renders den el mismo resultado.
+  // vencido (nunca sincronizó, o pasaron >30 días desde el último). "Ahora" se fija al montar
+  // (useState perezoso) en vez de leerse en el cálculo: Date.now() es impuro incluso dentro de
+  // un useMemo (mismas deps, resultado distinto según el instante), y esta pantalla no
+  // necesita el segundo exacto — alcanza con "el momento en que se abrió".
+  const [ahora] = useState(() => Date.now());
   const syncStale = useMemo(
-    () => !lastSync || Date.now() - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000,
-    [lastSync]
+    () => !lastSync || ahora - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000,
+    [lastSync, ahora]
   );
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
