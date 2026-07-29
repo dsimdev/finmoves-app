@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/hooks/useTranslation";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 import { SwipeAway } from "@/components/ui/SwipeAway";
 import { listarNotificaciones, marcarLeida, eliminarNotificacion, marcarTodasLeidas, type Notificacion, type NotifTipo } from "@/services/firebase/notificaciones";
 
@@ -146,11 +147,10 @@ export function NotificationsBell() {
 // no ocupa toda la pantalla. Overlay transparente para cerrar al tocar afuera; portal
 // para escapar el stacking del header. Bloquea el scroll de fondo mientras está abierto.
 function NotifPopover({ open, onClose, title, children, anchorRef }: { open: boolean; onClose: () => void; title: string; children: ReactNode; anchorRef?: React.RefObject<HTMLElement | null> }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   // Distancia desde arriba: se mide del botón que lo abre, así queda a la misma distancia
   // del ícono en cualquier pantalla (el header de Inicio es más alto por el subtítulo).
   const [top, setTop] = useState<number | null>(null);
-  useEffect(() => { setMounted(true); }, []);
   useScrollLock(open);
   useModalBack(open, onClose);
   useEffect(() => {
