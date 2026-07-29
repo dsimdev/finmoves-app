@@ -18,8 +18,10 @@ export default function SettingsLanding() {
   const t = useT();
   const router = useRouter();
   const isDesktop = useIsDesktop();
-  const [fotoError, setFotoError] = useState(false);
-  useEffect(() => { setFotoError(false); }, [config?.meta.fotoURL]);
+  // Guarda la URL que falló, no un booleano: así "hay error" se deriva comparando contra la
+  // URL actual en cada render, sin necesitar un efecto que resetee el flag cuando cambia la
+  // foto (React desaconseja setState síncrono en efecto para esto; comparar valores alcanza).
+  const [fotoErrorUrl, setFotoErrorUrl] = useState<string | null>(null);
 
   // En escritorio el menú lo reemplaza la columna de secciones del layout: esta pantalla
   // quedaría vacía, así que se entra directo a la primera sección.
@@ -48,8 +50,8 @@ export default function SettingsLanding() {
 
       {/* Header de perfil → edita perfil */}
       <Link href="/settings/account" className="settings-profile" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 14, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
-        {fotoSrc && !fotoError ? (
-          <img src={fotoSrc} alt="" width={52} height={52} referrerPolicy="no-referrer" onError={() => setFotoError(true)} style={{ width: 52, height: 52, borderRadius: 14, objectFit: "cover", flexShrink: 0, border: "1px solid var(--green)44" }} />
+        {fotoSrc && fotoSrc !== fotoErrorUrl ? (
+          <img src={fotoSrc} alt="" width={52} height={52} referrerPolicy="no-referrer" onError={() => setFotoErrorUrl(fotoSrc)} style={{ width: 52, height: 52, borderRadius: 14, objectFit: "cover", flexShrink: 0, border: "1px solid var(--green)44" }} />
         ) : (
           <div style={{ width: 52, height: 52, borderRadius: 14, background: tieneNombre ? "var(--green-dim)" : "var(--surface-alt)", border: `1px solid ${tieneNombre ? "var(--green)44" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={tieneNombre ? "var(--green)" : "var(--muted)"} strokeWidth="1.7" /><path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7" stroke={tieneNombre ? "var(--green)" : "var(--muted)"} strokeWidth="1.7" strokeLinecap="round" /></svg>

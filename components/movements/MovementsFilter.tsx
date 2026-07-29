@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useT } from "@/hooks/useTranslation";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 import { movMatchesAny } from "@/utils/search";
 import type { Movimiento } from "@/types";
 
@@ -31,11 +32,10 @@ export function MovementsFilter({ open, onClose, movs, movsGlobal, terms, onChan
 }) {
   const t = useT();
   const [input, setInput] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   // Igual que el panel de notificaciones: la distancia se mide del ícono que lo abre, para
   // que no dependa de cuán alto sea el header de cada pantalla.
   const [top, setTop] = useState<number | null>(null);
-  useEffect(() => { setMounted(true); }, []);
   useScrollLock(open);
   useModalBack(open, onClose);
   useEffect(() => {

@@ -14,15 +14,15 @@ export default function NotificacionesSettings() {
   const { user } = useAuth();
   const t = useT();
 
-  const [pushAvailable, setPushAvailable] = useState(false);
+  // pushSupported() es sincrónico (chequea navigator/ServiceWorker): sale del inicializador
+  // de useState, no de un setState dentro del efecto.
+  const [pushAvailable] = useState(pushSupported);
   const [pushOn, setPushOn] = useState(false);
   const [pushError, setPushError] = useState("");
   const [pushBusy, setPushBusy] = useState(false);
   useEffect(() => {
-    const ok = pushSupported();
-    setPushAvailable(ok);
-    if (ok) isPushEnabled().then(setPushOn);
-  }, []);
+    if (pushAvailable) isPushEnabled().then(setPushOn);
+  }, [pushAvailable]);
   const togglePush = async () => {
     if (pushBusy || !user?.uid) return;
     setPushError("");
