@@ -213,12 +213,15 @@ export default function MovimientosPage() {
   // Deep-link a la carga: atajo del launcher (?nuevo=1), acción "Cargar" del push, o
   // ?recurrente=<id> (desde el panel de notificaciones) → alta pre-cargada con ese
   // recurrente (monto vacío). Espera a que `recurrentes` esté cargado para poder resolverlo.
+  // Reacciona a la URL (un sistema externo a React): es el uso de efecto que React documenta
+  // como correcto, no el anti-patrón de derivar estado que ya se puede calcular en render.
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const recId = sp.get("recurrente");
     if (recId) {
       const r = recurrentes.find((x) => x.id === recId);
       if (r) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setModalState({ mode: "add", prefill: { tipo: r.tipo, categoria: r.categoria, descripcion: r.descripcion, observaciones: r.observaciones } });
         window.history.replaceState(window.history.state, "", "/movements");
       } else if (recurrentesLoaded) {
@@ -232,15 +235,16 @@ export default function MovimientosPage() {
       openAdd();
       window.history.replaceState(window.history.state, "", "/movements");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recurrentes, recurrentesLoaded]);
 
-  // Si llegamos con ?m=<id> (desde el dashboard), abrir ese movimiento para editar.
+  // Si llegamos con ?m=<id> (desde el dashboard), abrir ese movimiento para editar. Mismo
+  // caso que el deep-link de arriba: reacciona a la URL, no deriva estado de props/deps.
   useEffect(() => {
     if (loading || movimientos.length === 0) return;
     const id = new URLSearchParams(window.location.search).get("m");
     if (!id) return;
     const mov = movimientos.find((x) => x.id === id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (mov) openEdit(mov);
     window.history.replaceState(window.history.state, "", "/movements");
   }, [loading, movimientos]);
@@ -291,9 +295,17 @@ export default function MovimientosPage() {
   // Días colapsables: para evitar el scroll infinito, solo el día más reciente
   // arranca abierto; el resto se muestra como resumen (total + nº) y se abren al tocar.
   const [diasAbiertos, setDiasAbiertos] = useState<Set<string>>(new Set());
+  // `diasAbiertos` es estado real porque el usuario lo toca directamente (abrir/cerrar un día
+  // colapsado) — no se puede reemplazar por un valor derivado. Este efecto solo REINICIA esa
+  // selección ante cambios de contexto (nuevo período, activar/desactivar filtro, nueva
+  // búsqueda), preservándola al editar un movimiento. El patrón "ajustar durante el render"
+  // que React sugiere para resets así requeriría mutar un ref en el cuerpo del render, y el
+  // compiler de este proyecto lo rechaza (ver BottomSheet.tsx) — se documenta la excepción acá
+  // en vez de forzarlo.
   useEffect(() => {
     // Con filtro activo, abrir TODOS los días (querés ver el resultado completo, no colapsado).
     // Sin filtro, solo el día más reciente (evita el scroll infinito).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (filterActivo) setDiasAbiertos(new Set(movsPorFecha.map((g) => g.fecha)));
     else setDiasAbiertos(new Set(movsPorFecha[0] ? [movsPorFecha[0].fecha] : []));
     // Al cambiar de período/año, al (des)activar el filtro o al cambiar su ámbito. No al
