@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/hooks/useTranslation";
 import { useMoney } from "@/hooks/useHideValues";
+import { useMounted } from "@/hooks/useMounted";
 import { fechaCorta } from "@/utils/periodo";
 import type { RecapPeriodo as Recap } from "@/utils/recap-periodo";
 
@@ -27,8 +28,7 @@ function Delta({ pct, subirEsBueno }: { pct: number | null; subirEsBueno?: boole
 export function RecapPeriodo({ open, onClose, recap }: { open: boolean; onClose: () => void; recap: Recap | null }) {
   const t = useT();
   const { m: money } = useMoney();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

@@ -35,7 +35,11 @@ export function YearWrapped({ open, onClose }: { open: boolean; onClose: () => v
   const years = useMemo(() => wrappedYears(movimientos), [movimientos]);
   const [year, setYear] = useState(years[0] ?? "");
   const [i, setI] = useState(0);
-  useEffect(() => { if (open) setI(0); }, [open]);
+  // `i` es estado real (el usuario navega los slides); este efecto solo lo REINICIA al
+  // reabrir. Mismo caso que BottomSheet.ty: el patrón "ajustar durante el render" que sugiere
+  // React requeriría mutar un ref en el cuerpo del render, que el compiler de este proyecto
+  // rechaza.
+  useEffect(() => { if (open) setI(0); }, [open]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const slides = useMemo<Slide[]>(() => {
     if (!year) return [];
