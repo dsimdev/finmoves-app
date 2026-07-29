@@ -20,8 +20,10 @@ export default function AccountSettings() {
   const t = useT();
   const router = useRouter();
 
-  const [fotoError, setFotoError] = useState(false);
-  const [googleLinked, setGoogleLinked] = useState(false);
+  const [fotoErrorUrl, setFotoErrorUrl] = useState<string | null>(null);
+  // isGoogleLinked() lee auth.currentUser directo (sincrónico): el inicializador cubre el
+  // primer render; el efecto de abajo solo re-sincroniza cuando cambia el usuario después.
+  const [googleLinked, setGoogleLinked] = useState(isGoogleLinked);
   const [googleErr, setGoogleErr] = useState("");
   const [confirmUnlink, setConfirmUnlink] = useState(false);
 
@@ -33,16 +35,24 @@ export default function AccountSettings() {
   const [profileBusy, setProfileBusy] = useState(false);
 
   const [bioAvailable, setBioAvailable] = useState(false);
-  const [bioEnabled, setBioEnabled] = useState(false);
+  // isBiometricEnabledFor es sincrónica: mismo patrón que googleLinked arriba.
+  const [bioEnabled, setBioEnabled] = useState(() => isBiometricEnabledFor(user?.uid));
   const [bioError, setBioError] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteRequested, setDeleteRequested] = useState(false);
 
-  useEffect(() => { setGoogleLinked(isGoogleLinked()); }, [user?.uid]);
-  useEffect(() => { setFotoError(false); }, [config?.meta.fotoURL, googleLinked]);
-  useEffect(() => { platformAuthenticatorAvailable().then(setBioAvailable); setBioEnabled(isBiometricEnabledFor(user?.uid)); }, [user?.uid]);
+  // Re-sincroniza con auth/biometría (sistemas externos) cuando el usuario cambia DESPUÉS
+  // del montaje — el inicializador de arriba solo cubre el primer render. Es el uso de
+  // efecto que React documenta como correcto ("sincronizar con un sistema externo"), no el
+  // anti-patrón de la regla (derivar estado de props/deps que ya se puede calcular directo).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGoogleLinked(isGoogleLinked());
+    setBioEnabled(isBiometricEnabledFor(user?.uid));
+    platformAuthenticatorAvailable().then(setBioAvailable);
+  }, [user?.uid]);
 
   const handleLinkGoogle = async () => {
     if (googleLinked) return;
@@ -107,8 +117,8 @@ export default function AccountSettings() {
 
       {/* Perfil */}
       <div style={{ ...card, display: "flex", alignItems: "center", gap: 14 }}>
-        {fotoSrc && !fotoError ? (
-          <img src={fotoSrc} alt="" width={56} height={56} referrerPolicy="no-referrer" onError={() => setFotoError(true)} style={{ width: 56, height: 56, borderRadius: 16, objectFit: "cover", flexShrink: 0, border: "1px solid var(--green)44" }} />
+        {fotoSrc && fotoSrc !== fotoErrorUrl ? (
+          <img src={fotoSrc} alt="" width={56} height={56} referrerPolicy="no-referrer" onError={() => setFotoErrorUrl(fotoSrc)} style={{ width: 56, height: 56, borderRadius: 16, objectFit: "cover", flexShrink: 0, border: "1px solid var(--green)44" }} />
         ) : (
           <div style={{ width: 56, height: 56, borderRadius: 16, background: config.meta.nombre ? "var(--green-dim)" : "var(--surface-alt)", border: `1px solid ${config.meta.nombre ? "var(--green)44" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={config.meta.nombre ? "var(--green)" : "var(--muted)"} strokeWidth="1.7" /><path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7" stroke={config.meta.nombre ? "var(--green)" : "var(--muted)"} strokeWidth="1.7" strokeLinecap="round" /></svg>
