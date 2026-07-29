@@ -59,7 +59,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const uid = user?.uid;
   useEffect(() => {
-    if (!uid) { setRecurrentes([]); setRecurrentesLoaded(false); setPlantillas([]); return; }
+    // Limpieza real, no redundante: si un usuario cierra sesión y otro entra en el mismo tab
+    // (sin remount), hay que descartar los recurrentes/plantillas del usuario anterior — el
+    // estado inicial en [] solo cubre el primer montaje.
+    if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRecurrentes([]); setRecurrentesLoaded(false); setPlantillas([]);
+      return;
+    }
     listarRecurrentes(uid).then((r) => { setRecurrentes(r); setRecurrentesLoaded(true); }).catch(() => {});
     listarPlantillas(uid).then(setPlantillas).catch(() => {});
   }, [uid]);

@@ -24,13 +24,18 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  // Si hay desbloqueo biométrico configurado para este usuario, la app arranca
-  // bloqueada hasta verificar la huella (gate de UI sobre la sesión activa).
-  const [lockState, setLockState] = useState<"checking" | "locked" | "unlocked">("checking");
-  useEffect(() => {
-    if (loading || !user) return;
-    setLockState(isBiometricEnabledFor(user.uid) ? "locked" : "unlocked");
-  }, [loading, user]);
+  // Si hay desbloqueo biométrico configurado para este usuario, la app arranca bloqueada
+  // hasta verificar la huella (gate de UI sobre la sesión activa). "unlocked a mano" es el
+  // ÚNICO estado que no se deriva de auth (memoria de que el usuario ya pasó el gate en esta
+  // sesión); lo demás se calcula directo de user/loading, sin duplicarlo en un efecto.
+  // Se guarda el UID desbloqueado, no solo un booleano: si un usuario cierra sesión y OTRO
+  // entra en el mismo tab (sin remount), el desbloqueo del anterior no debe valer para el
+  // nuevo — sería saltear el gate biométrico de una cuenta distinta.
+  const [uidDesbloqueado, setUidDesbloqueado] = useState<string | null>(null);
+  const lockState: "checking" | "locked" | "unlocked" =
+    loading || !user ? "checking"
+      : uidDesbloqueado === user.uid || !isBiometricEnabledFor(user.uid) ? "unlocked"
+      : "locked";
 
   useInactivityLogout(!!user);
 
@@ -52,7 +57,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   if (lockState === "locked") {
     return (
       <LockScreen
-        onUnlock={() => setLockState("unlocked")}
+        onUnlock={() => setUidDesbloqueado(user.uid)}
         onUsePassword={async () => { useAppPrefs.getState().reset(); await signOut(auth); }}
       />
     );
