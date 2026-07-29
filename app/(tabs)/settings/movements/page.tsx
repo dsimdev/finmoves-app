@@ -99,7 +99,11 @@ export default function MovementsSettings() {
   const [renameInput, setRenameInput] = useState("");
   const [renameConfirm, setRenameConfirm] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
-  useEffect(() => { setRenameInput(editandoVisual ?? ""); }, [editandoVisual]);
+  // renameInput es estado real (el usuario lo edita tipeando); el efecto solo lo REINICIA al
+  // abrir el editor de otra categoría. Mismo caso que diasAbiertos en movements/page.tsx: el
+  // patrón "ajustar durante el render" que sugiere React requeriría mutar un ref en el cuerpo
+  // del render, que el compiler de este proyecto rechaza.
+  useEffect(() => { setRenameInput(editandoVisual ?? ""); }, [editandoVisual]); // eslint-disable-line react-hooks/set-state-in-effect
   const renameCheck = catEditando ? validarRename(catEditando.nombre, renameInput, localCats.map((c) => c.nombre)) : { ok: false as const, motivo: "vacio" as const };
   // Conteo para el diálogo, del cache. Es solo informativo: la migración lee del servidor, así
   // que aunque el cache esté frío (count 0) el rename igual migra todo. Por eso null = "cargando"
@@ -160,10 +164,16 @@ export default function MovementsSettings() {
   // Presupuesto (template por categoría) — fusionado desde la antigua sección Presupuestos.
   const [localTemplate, setLocalTemplate] = useState<Record<string, string>>({});
   const [templateSaving, setTemplateSaving] = useState(false);
+  // localTemplate es estado editable (el usuario tipea los montos); este efecto solo lo
+  // HIDRATA una vez que `config` llega (asíncrono, no está disponible en el primer render) —
+  // por eso las deps son `[!!config]` y no `[config]`: corre una sola vez al pasar de
+  // "sin datos" a "con datos", sin pisar ediciones si config se refresca después.
   useEffect(() => {
     if (!config) return;
     const tpl = config.meta.presupuestoTemplate ?? {};
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalTemplate(Object.fromEntries(Object.entries(tpl).map(([k, v]) => [k, String(v)])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!config]);
   const templateIsDirty = useMemo(() => {
     const saved = config?.meta.presupuestoTemplate ?? {};
@@ -342,6 +352,9 @@ export default function MovementsSettings() {
                 {ICONOS_LISTA.map((ic) => {
                   const sel = actual.icono === ic;
                   return (
+                    // false positive: setVisual lee catsRef.current, pero solo se invoca desde
+                    // este onClick (un handler de evento), nunca durante el render.
+                    // eslint-disable-next-line react-hooks/refs
                     <button key={ic} type="button" onClick={() => setVisual(catEditando.nombre, { icono: ic })} aria-label={ic} aria-pressed={sel}
                       style={{
                         aspectRatio: "1", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
