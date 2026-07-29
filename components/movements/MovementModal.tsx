@@ -6,7 +6,7 @@ import { useCotizacion } from "@/hooks/useCotizacion";
 import { useAppPrefs } from "@/hooks/useAppPrefs";
 import { useMoney } from "@/hooks/useHideValues";
 import { useT } from "@/hooks/useTranslation";
-import { crearMovimientoConId, nuevoMovimientoId, actualizarMovimiento, eliminarMovimiento } from "@/services/firebase/movimientos";
+import { crearMovimientoConId, nuevoMovimientoId, actualizarMovimiento } from "@/services/firebase/movimientos";
 import { upsertRecurrente } from "@/services/firebase/recurrentes";
 import { recurrentKey } from "@/utils/recurrent-key";
 import { crearPlantilla, eliminarPlantilla, usarPlantilla, type Plantilla } from "@/services/firebase/plantillas";
@@ -26,6 +26,7 @@ import { reservaFX } from "@/utils/reserva";
 import { fxFlags, calcularFX, num } from "@/utils/movement-fx";
 import { esMovimientoFX, monedaMovFX } from "./movement-shared";
 import { MovementDetail } from "./MovementEditDetail";
+import { MovementDelete } from "./MovementDelete";
 import { Movimiento, TipoMovimiento, ConfigUsuario } from "@/types";
 import { feedback } from "@/lib/feedback";
 
@@ -485,19 +486,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
       await actualizarMovimiento(user.uid, movimiento.id, update);
       // Optimista: parchear en memoria en vez de re-leer toda la colección.
       if (onUpdated) onUpdated(movimiento.id, update); else onChanged();
-      onClose();
-    } catch (err) { console.error(err); setEditError(err instanceof Error ? err.message : t.unexpectedError); }
-    finally { setEditLoading(false); }
-  };
-
-  const handleDelete = async () => {
-    if (!user?.uid || !movimiento) return;
-    // El pulso lo dispara el botón del ConfirmModal que llama acá.
-    setEditLoading(true); setEditError("");
-    try {
-      await eliminarMovimiento(user.uid, movimiento.id);
-      await deleteComprobante(movimiento.comprobantePath); // borrar el comprobante asociado
-      if (onDeleted) onDeleted(movimiento.id); else onChanged();
       onClose();
     } catch (err) { console.error(err); setEditError(err instanceof Error ? err.message : t.unexpectedError); }
     finally { setEditLoading(false); }
@@ -1038,20 +1026,12 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
         recurrentes={recurrentes} money={money} readOnly onClose={onClose}
       />
     )}
-    {open && view === "delete" && movimiento && (
-      // Cancelar: si se entró directo a borrar por swipe/long-press (initialView="delete"),
-      // no hay card de detalle detrás → cerrar. Si se llegó desde el detalle (tap en el
-      // tachito de la card), volver al detalle para poder editar en vez de salir al listado.
-      <ConfirmModal title={t.delete} confirmLabel={t.yesDelete} cancelLabel={t.cancel} confirmColor="var(--red)" loading={editLoading}
-        onConfirm={handleDelete} onCancel={initialView === "delete" ? onClose : () => { setEditError(""); setView("detail"); }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ marginBottom: 6 }}>{t.deleteMovementTitle}</div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{movimiento.descripcion || movimiento.categoria}</div>
-          <div style={{ fontSize: 18, color: "var(--red)", fontFamily: "var(--font-mono)", fontWeight: 700, marginBottom: 8 }}>{money(movimiento.monto)}</div>
-          <div style={{ fontSize: 11 }}>{t.actionIrreversible}</div>
-          {editError && <div style={{ fontSize: 12, color: "var(--red)", marginTop: 10, fontWeight: 600 }}>{editError}</div>}
-        </div>
-      </ConfirmModal>
+    {movimiento && (
+      <MovementDelete
+        open={open && view === "delete"} movimiento={movimiento} uid={user?.uid}
+        entradaDirecta={initialView === "delete"} money={money} onClose={onClose}
+        onBackToDetail={() => setView("detail")} onDeleted={onDeleted} onChanged={onChanged}
+      />
     )}
     {tplDelete && (
       <ConfirmModal title={t.tplDelete} confirmLabel={t.yesDelete} cancelLabel={t.cancel} confirmColor="var(--red)"
