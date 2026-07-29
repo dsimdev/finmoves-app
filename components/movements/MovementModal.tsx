@@ -24,10 +24,8 @@ import { agruparPorPeriodo, formatARS, fechaCorta, fechaAPeriodoId } from "@/uti
 import { serieTendencia } from "@/utils/reportes";
 import { reservaFX } from "@/utils/reserva";
 import { fxFlags, calcularFX, num } from "@/utils/movement-fx";
-import {
-  DetalleHero, DetalleFX, DetalleTextos, ComprobanteButton,
-  IconoCalendario, IconoTarjeta, IconoRecurrente, detalleChip, esMovimientoFX, monedaMovFX,
-} from "./movement-shared";
+import { esMovimientoFX, monedaMovFX } from "./movement-shared";
+import { MovementDetail } from "./MovementEditDetail";
 import { Movimiento, TipoMovimiento, ConfigUsuario } from "@/types";
 import { feedback } from "@/lib/feedback";
 
@@ -299,13 +297,6 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
   const esVentaFX = tipo === "VentaUSD" || tipo === "VentaEUR";
   const esIngresoFX = tipo === "IngresoUSD" || tipo === "IngresoEUR";
   const tipoColor = TIPOS.find((tx) => tx.t === tipo)?.color ?? "var(--accent)";
-
-  // Categoría del movimiento que se está viendo, para que el héroe del detalle muestre SU
-  // ícono. Si no está en la config (borrada, o Move/RESTO que no son categorías reales), se
-  // pasa solo el nombre y utils/categoria-visual deduce un default.
-  const catDelMovimiento = movimiento
-    ? config?.categorias.find((c) => c.nombre === movimiento.categoria) ?? { nombre: movimiento.categoria }
-    : undefined;
 
   const categoriasFiltradas = tipo === "Gasto"
     ? (config?.categorias.filter((c) => c.tipo === "Gasto" && c.activa) ?? [])
@@ -1032,47 +1023,20 @@ export function MovementModal({ open, mode, movimiento, movimientos, config, act
       </CenterCard>
     )}
 
-    {/* DETALLE como CARD centrada (tap en una fila). Héroe con ícono de tipo + monto,
-        chips meta, comprobante embebido. Solo lectura: editar/eliminar son swipe en la lista. */}
-    {mode === "edit" && movimiento && !readOnly && (() => {
-      const esRec = recurrenteKeys.has(recKey(movimiento.tipo, movimiento.categoria, movimiento.descripcion, movimiento.observaciones));
-      return (
-      <CenterCard open={open && view === "detail"} onClose={onClose} title={t.detail}>
-        {/* El detalle es SOLO LECTURA: editar y eliminar son gestos de swipe en la lista
-            (lapicito + tacho). Así la card no repite acciones y desaparece el flujo de
-            borrado-desde-detalle (que traía el bug del cancelar). */}
-        <DetalleHero movimiento={movimiento} money={money} categoria={catDelMovimiento}>
-          <span style={detalleChip}><IconoCalendario />{fechaCorta(movimiento.fecha)}</span>
-          {movimiento.medioPago && !isLocked && (
-            <span style={detalleChip}><IconoTarjeta />{movimiento.medioPago}</span>
-          )}
-          {esRec && (
-            <span style={{ ...detalleChip, color: "var(--accent)", background: "var(--accent-dim)", borderColor: "var(--accent)" }}>
-              <IconoRecurrente />{t.recurrentMovement}
-            </span>
-          )}
-        </DetalleHero>
-        <DetalleFX movimiento={movimiento} labels={{ quantity: t.quantity, exchangeRate: t.exchangeRate }} />
-        <DetalleTextos movimiento={movimiento} labels={{ description: t.description, notes: t.notes }} />
-        <ComprobanteButton movimiento={movimiento} label={t.receipt} onOpen={(src, isPdf) => setViewer({ src, isPdf })} />
-      </CenterCard>
-      );
-    })()}
-
-    {/* RESERVA (readOnly, desde Inversión): mismo look de card que el detalle, pero solo
-        lectura — sin lapicito ni tacho (editar es exclusivo de Movimientos). */}
+    {/* DETALLE (solo lectura) + RESERVA (readOnly desde Inversión): extraído a
+        MovementDetail (MovementEditDetail.tsx). Editar/eliminar son swipe en la lista, no
+        acciones de esta card. */}
+    {mode === "edit" && movimiento && !readOnly && (
+      <MovementDetail
+        open={open && view === "detail"} movimiento={movimiento} config={config}
+        recurrentes={recurrentes} money={money} onClose={onClose}
+      />
+    )}
     {readOnly && movimiento && (
-      <CenterCard open={open && view !== "delete"} onClose={onClose} title={t.detail}>
-        {/* Mismas piezas que el detalle de Movimientos, pero sin acciones ni chip de medio
-            de pago: la reserva es solo lectura (borrar es swipe en la fila del historial). */}
-        <DetalleHero movimiento={movimiento} money={money} fxComoHeroe>
-          <span style={detalleChip}><IconoCalendario />{fechaCorta(movimiento.fecha)}</span>
-        </DetalleHero>
-        {/* Cotización y observaciones en una fila; la descripción no se muestra porque en
-            reserva siempre repite el título ("Compra USD"). */}
-        <DetalleFX movimiento={movimiento} labels={{ quantity: t.quantity, exchangeRate: t.exchangeRate, notes: t.notes }} sinCantidad conObservaciones />
-        <ComprobanteButton movimiento={movimiento} label={t.receipt} onOpen={(src, isPdf) => setViewer({ src, isPdf })} />
-      </CenterCard>
+      <MovementDetail
+        open={open && view !== "delete"} movimiento={movimiento} config={config}
+        recurrentes={recurrentes} money={money} readOnly onClose={onClose}
+      />
     )}
     {open && view === "delete" && movimiento && (
       // Cancelar: si se entró directo a borrar por swipe/long-press (initialView="delete"),
