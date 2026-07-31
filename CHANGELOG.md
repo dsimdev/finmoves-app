@@ -4,6 +4,51 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.105.1] — 2026-07-30
+
+### Changed — MovementModal split into per-view components
+`components/movements/MovementModal.tsx` (1123 lines, 25 hooks, mixing Add/Edit/Detail/Delete)
+split into a thin shell (101 lines) that mounts one of three children per view. Public
+`MovementModalProps` unchanged — all 4 call sites (investments, movements, home ×2) untouched.
+
+- **`MovementAdd.tsx`** (new) — the full add BottomSheet: type, templates, category, FX,
+  period-opening logic, recurrent toggle, `handleAdd`. Owns its own `useAddForm()` and
+  `ComprobanteField` instance.
+- **`MovementEditDetail.tsx`** (new) — detail (read-only) + edit, same CenterCard alternating
+  an internal `"detail" | "form"` sub-view (synced from the parent's `initialView` prop), plus
+  the read-only reserve view (FX history from Investments).
+- **`MovementDelete.tsx`** (new) — the delete confirmation, with its own `loading`/`error`
+  state (not shared with Edit, even though they never fire together — coupling two unrelated
+  flows through one state pair was the debt this split targeted).
+- **`ComprobanteField`** (new, in `movement-shared.tsx`) — encapsulates `useComprobante()` +
+  icon + `ComprobanteChooser` + viewer into one controlled unit (`onChange({file, removed})` +
+  `resetKey`), so Add and Edit each get their own independent receipt-attachment lifecycle
+  instead of sharing one through the parent.
+- Resolves the `set-state-in-effect` lint error that had survived on this file since it was
+  flagged "don't touch without an explicit ask" for its size/criticality: the combined
+  init effect is now two effects (Add / Edit+Delete), each documented with why the setState
+  runs in an effect (syncing to the `open` prop, not deriving render-computable state).
+
+### Added — Playwright E2E suite
+First real end-to-end tests, running against the production Firebase with a dedicated test
+account (own uid, isolated data) — no staging environment exists yet, and mocking Firestore
+wouldn't have caught the rename-categoria bug that shipped this same cycle. 4 specs: login +
+add + delete, edit (amount/description/payment method), FX reserve purchase from Investments,
+and recurrent (toggling "repeat" creates the doc; the next matching entry no longer offers the
+toggle). `npm run test:e2e`, mobile viewport (the app is mobile-first; the desktop layout is
+out of scope for now).
+
+### Added — Firebase service test coverage
+Until now the 352 tests only covered pure `utils/*`; no `services/firebase/*.ts` had a
+dedicated test — the rename-categoria bug from this same cycle lived exactly in that gap (the
+orchestration, not the pure logic). New `tests/helpers/firestore-fake.ts` (in-memory fake
+covering just the operations the services use) plus 27 tests across the four highest-risk
+services: `rename-categoria.ts` (reproduces the real bug — migrates movements read from the
+server even when none are passed by the caller), `movimientos.ts`, `recurrentes.ts`,
+`config.ts`. Suite: 379 tests total.
+
+---
+
 ## [2.105.0] — 2026-07-24
 
 ### Added — budget can't allocate more than your income

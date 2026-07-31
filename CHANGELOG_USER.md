@@ -4,6 +4,12 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.105.1] — 2026-07-30
+
+Mejoras internas y de testing. Sin cambios visibles.
+
+---
+
 ## [2.105.0] — 2026-07-24
 
 ### El presupuesto no te deja distribuir más de lo que ganás
