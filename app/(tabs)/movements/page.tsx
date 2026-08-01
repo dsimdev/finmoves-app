@@ -654,7 +654,10 @@ export default function MovimientosPage() {
       movimiento={modalState?.mov ?? null}
       movimientos={movimientos}
       config={config}
-      activePeriodoId={activePeriodoId}
+      // El alta SIEMPRE va al período más reciente (periodos[0]), sin importar qué pill
+      // esté navegando el usuario en el calendario — si no, un alta hecha mientras se
+      // revisa un período viejo se cargaba ahí en silencio, sin ningún aviso.
+      activePeriodoId={modalState?.mode === "add" ? periodos[0]?.periodoId : activePeriodoId}
       initialView={modalState?.view}
       prefill={modalState?.prefill ?? null}
       onClose={() => setModalState(null)}
