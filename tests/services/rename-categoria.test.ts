@@ -106,3 +106,73 @@ describe("renombrarCategoria", () => {
     expect(db.getDoc(`users/${UID}/recurrentes/otro-id`)?.categoria).toBe("Transporte");
   });
 });
+
+describe("eliminarCategoria", () => {
+  beforeEach(() => {
+    const db = resetActiveFake();
+    db.setDoc(`users/${UID}/config/meta`, {});
+    vi.resetModules();
+  });
+
+  it("saca la categoría del array categorias", async () => {
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    const meta = getActiveFake().getDoc(`users/${UID}/config/meta`);
+    const categorias = meta?.categorias as Categoria[];
+    expect(categorias.find((c) => c.nombre === "Games")).toBeUndefined();
+  });
+
+  it("limpia la key del presupuestoTemplate (bug real: quedaba visible en Presupuesto tras borrar)", async () => {
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    const meta = getActiveFake().getDoc(`users/${UID}/config/meta`);
+    const nested = meta?.meta as { presupuestoTemplate?: Record<string, number> } | undefined;
+    expect(nested?.presupuestoTemplate).toEqual({});
+  });
+
+  it("desactiva (no borra) los recurrentes que apuntaban a la categoría borrada", async () => {
+    const db = getActiveFake();
+    const recId = recurrentDocId({ tipo: "Gasto", categoria: "Games", descripcion: "Steam", observaciones: "" });
+    db.setDoc(`users/${UID}/recurrentes/${recId}`, { tipo: "Gasto", categoria: "Games", descripcion: "Steam", monto: 100, activo: true });
+
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    const rec = db.getDoc(`users/${UID}/recurrentes/${recId}`);
+    expect(rec).toBeDefined(); // no se borra, se desactiva: conserva el historial
+    expect(rec?.activo).toBe(false);
+    expect(rec?.categoria).toBe("Games"); // el nombre viejo queda, ya no existe como categoría activa
+  });
+
+  it("recurrentes de otra categoría quedan intactos y activos", async () => {
+    const db = getActiveFake();
+    db.setDoc(`users/${UID}/recurrentes/otro-id`, { tipo: "Gasto", categoria: "Comida", descripcion: "", monto: 10, activo: true });
+
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    expect(db.getDoc(`users/${UID}/recurrentes/otro-id`)?.activo).toBe(true);
+  });
+
+  it("un recurrente ya desactivado de esa categoría no dispara ninguna escritura de más", async () => {
+    const db = getActiveFake();
+    db.setDoc(`users/${UID}/recurrentes/rec-inactivo`, { tipo: "Gasto", categoria: "Games", descripcion: "", monto: 10, activo: false });
+
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    expect(db.getDoc(`users/${UID}/recurrentes/rec-inactivo`)?.activo).toBe(false);
+  });
+
+  it("no toca movimientos existentes (son historial real, no se migran al borrar)", async () => {
+    const db = getActiveFake();
+    db.setDoc(`users/${UID}/movimientos/m1`, { categoria: "Games", monto: 100 });
+
+    const { eliminarCategoria } = await import("@/services/firebase/rename-categoria");
+    await eliminarCategoria(UID, "Games", configConCategoria("Games"));
+
+    expect(db.getDoc(`users/${UID}/movimientos/m1`)?.categoria).toBe("Games");
+  });
+});

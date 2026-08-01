@@ -4,6 +4,39 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.105.2] — 2026-07-31
+
+### Fixed — add always targets the most recent period
+`activePeriodoId` was derived from the calendar pill the user was browsing, not necessarily
+the most recent period, and that same id was passed to the add modal. Browsing an old period
+and adding a movement without switching back silently saved it there. Add now always uses
+`periodos[0]` (the real most-recent one); `activePeriodoId` still reflects navigation for the
+rest of the page (header "Available"/"Remaining").
+
+### Fixed — editing an Ingreso/Ahorros movement no longer accepts free text for origin
+The edit field was labeled "Description" and was a free-text input for every movement type,
+including Ingreso/Ahorros — where Add uses a closed set of pills from
+`config.origenesAhorro` for that same value. On save it also always wrote to the
+`descripcion` field, never `origenAhorro`: the real origin stayed intact but "ghosted" (the
+UI showed the new free text on top via the `descripcion || origenAhorro` fallback). Edit now
+shows the same origin pills as Add for Ingreso/Ahorros (same criterion: the current origin is
+included even if deactivated, so it isn't lost) and saves to `origenAhorro`.
+
+### Fixed — deleting a category now cleans up its budget template and recurrents
+`delCat` only removed the name from the `categorias` array — unlike rename
+(`renombrarCategoria`), which migrates config/movements/recurrents, delete touched nothing
+else. Two orphans resulted: `presupuestoTemplate` kept the deleted category's key (so it kept
+showing up in the period budget editor and the default template), and recurrents pointing to
+that category stayed active, still firing reminders for a category that no longer exists. New
+`eliminarCategoria` in `services/firebase/rename-categoria.ts` (same file/pattern as rename:
+reads recurrents from the SERVER, not the client) removes the category from config, cleans
+the `presupuestoTemplate` key (`quitarDeTemplate`, analogous to `renombrarTemplate`), and
+DEACTIVATES (doesn't delete) affected recurrents — preserving load history, unlike rename's
+re-create-with-new-id. Existing movements aren't touched: they're real history, with no new
+category to migrate them to.
+
+---
+
 ## [2.105.1] — 2026-07-30
 
 ### Changed — MovementModal split into per-view components

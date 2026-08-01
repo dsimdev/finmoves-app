@@ -3,7 +3,7 @@ import { db } from "./firebase";
 import { trackWrite } from "@/lib/sync-status";
 import { recategorizarMovimientos } from "./movimientos";
 import { recurrentDocId } from "@/utils/recurrent-key";
-import { renombrarTemplate } from "@/utils/rename-categoria";
+import { renombrarTemplate, quitarDeTemplate } from "@/utils/rename-categoria";
 import { visualDeCategoria } from "@/utils/categoria-visual";
 import type { ConfigUsuario } from "@/types";
 
@@ -67,6 +67,36 @@ export async function renombrarCategoria(
       batch.set(doc(db, `users/${uid}/recurrentes/${nuevoId}`), { ...data, categoria: nuevo });
       if (nuevoId !== viejoId) batch.delete(doc(db, `users/${uid}/recurrentes/${viejoId}`));
     }
+    await trackWrite(batch.commit());
+  }
+}
+
+// Borra una categoría de config, migrando lo que la referencia por nombre — a diferencia del
+// rename, los MOVIMIENTOS existentes no se tocan (son historial real; no hay categoría nueva
+// a la cual migrarlos). Toca, en orden:
+//   1. config: se saca del array `categorias` y se limpia la key del `presupuestoTemplate`
+//      (si no se limpia, la categoría borrada sigue apareciendo en el editor de presupuesto —
+//      bug real que dejaba "Games" visible ahí después de borrarla).
+//   2. recurrentes con esa categoría → se DESACTIVAN (no se borran, conservan el historial de
+//      qué se cargaba), así el cron deja de recordarlos y ya no aparecen como sugerencia activa.
+//
+// Igual que renombrarCategoria, los recurrentes se leen del SERVIDOR, no del cliente.
+export async function eliminarCategoria(
+  uid: string,
+  nombre: string,
+  config: ConfigUsuario,
+): Promise<void> {
+  const categorias = config.categorias.filter((c) => c.nombre !== nombre);
+  const nuevoTemplate = quitarDeTemplate(config.meta.presupuestoTemplate, nombre);
+  const patch: Record<string, unknown> = { categorias };
+  if (nuevoTemplate) patch["meta.presupuestoTemplate"] = nuevoTemplate;
+  await trackWrite(updateDoc(doc(db, `users/${uid}/config/meta`), patch));
+
+  const recSnap = await getDocs(collection(db, `users/${uid}/recurrentes`));
+  const afectados = recSnap.docs.filter((d) => d.data().categoria === nombre && d.data().activo);
+  if (afectados.length > 0) {
+    const batch = writeBatch(db);
+    for (const d of afectados) batch.update(d.ref, { activo: false });
     await trackWrite(batch.commit());
   }
 }

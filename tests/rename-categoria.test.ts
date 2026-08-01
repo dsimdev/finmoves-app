@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validarRename, movimientosAMigrar, renombrarTemplate } from "@/utils/rename-categoria";
+import { validarRename, movimientosAMigrar, renombrarTemplate, quitarDeTemplate } from "@/utils/rename-categoria";
 import { visualDeCategoria } from "@/utils/categoria-visual";
 
 describe("validarRename", () => {
@@ -73,6 +73,24 @@ describe("renombrarTemplate", () => {
     const tpl = { Comida: 50000 };
     renombrarTemplate(tpl, "Comida", "Súper");
     expect(tpl).toEqual({ Comida: 50000 });
+  });
+});
+
+describe("quitarDeTemplate", () => {
+  it("saca la key de la categoría borrada", () => {
+    const tpl = { Comida: 50000, Games: 8000, Ocio: 20000 };
+    expect(quitarDeTemplate(tpl, "Games")).toEqual({ Comida: 50000, Ocio: 20000 });
+  });
+
+  it("devuelve null si esa categoría no tenía presupuesto (nada que limpiar)", () => {
+    expect(quitarDeTemplate({ Ocio: 20000 }, "Games")).toBeNull();
+    expect(quitarDeTemplate(undefined, "Games")).toBeNull();
+  });
+
+  it("no muta el template original", () => {
+    const tpl = { Games: 8000 };
+    quitarDeTemplate(tpl, "Games");
+    expect(tpl).toEqual({ Games: 8000 });
   });
 });
 

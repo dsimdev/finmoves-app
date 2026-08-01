@@ -4,6 +4,18 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.105.2] — 2026-07-31
+
+### Arreglos de carga y edición de movimientos
+- **Nuevo movimiento siempre va al período actual.** Antes, si estabas mirando un período
+  anterior en el calendario y cargabas algo sin darte cuenta, se guardaba ahí en silencio.
+- **Editar un ingreso de Ahorros** ahora te muestra los mismos orígenes para elegir que al
+  cargarlo (ya no dejaba escribir cualquier cosa).
+- **Borrar una categoría** ahora también la saca del presupuesto y desactiva los recurrentes
+  que la usaban — antes seguía apareciendo "fantasma" en Presupuesto.
+
+---
+
 ## [2.105.1] — 2026-07-30
 
 Mejoras internas y de testing. Sin cambios visibles.
