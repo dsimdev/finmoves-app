@@ -62,6 +62,11 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
   const [view, setView] = useState<"detail" | "form">(initialView === "form" ? "form" : "detail");
 
   const isLocked = movimiento.tipo === "Ingreso" && movimiento.categoria === "Sueldo";
+  // Ahorros: el "texto" del movimiento es un origen de una lista cerrada (config.origenesAhorro),
+  // no descripción libre — igual que en Alta. Antes la edición lo trataba como texto libre y
+  // siempre lo guardaba en `descripcion` (nunca en `origenAhorro`), dejando entrar cualquier
+  // valor y sin tocar el campo real.
+  const esAhorros = movimiento.tipo === "Ingreso" && movimiento.categoria === "Ahorros";
   const esRec = recurrentes.some((r) => r.activo &&
     recurrentKey(r) === recurrentKey({ tipo: movimiento.tipo, categoria: movimiento.categoria, descripcion: movimiento.descripcion, observaciones: movimiento.observaciones }));
   const esFXMov = esMovimientoFX(movimiento);
@@ -71,7 +76,8 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
 
   // ── Edit state ──
   const [eMonto, setEMonto] = useState(String(movimiento.monto));
-  const [eDesc, setEDesc] = useState(movimiento.descripcion || (movimiento as Movimiento & { origenAhorro?: string }).origenAhorro || "");
+  const [eDesc, setEDesc] = useState(movimiento.descripcion ?? "");
+  const [eOrigen, setEOrigen] = useState((movimiento as Movimiento & { origenAhorro?: string }).origenAhorro ?? "");
   const [eMedio, setEMedio] = useState(movimiento.medioPago ?? "");
   const [eObs, setEObs] = useState(movimiento.observaciones ?? "");
   const [comprobante, setComprobante] = useState<{ file: File | null; removed: boolean }>({ file: null, removed: false });
@@ -86,7 +92,8 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
     // reusa esta MISMA instancia entre movimientos distintos, así que el useState inicial
     // de cada campo no alcanza.
     setEMonto(String(movimiento.monto));
-    setEDesc(movimiento.descripcion || (movimiento as Movimiento & { origenAhorro?: string }).origenAhorro || "");
+    setEDesc(movimiento.descripcion ?? "");
+    setEOrigen((movimiento as Movimiento & { origenAhorro?: string }).origenAhorro ?? "");
     setEMedio(movimiento.medioPago ?? "");
     setEObs(movimiento.observaciones ?? "");
     setEditError("");
@@ -95,7 +102,9 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
 
   const isDirtyEdit =
     eMonto !== String(movimiento.monto) ||
-    eDesc !== (movimiento.descripcion ?? "") ||
+    (esAhorros
+      ? eOrigen !== ((movimiento as Movimiento & { origenAhorro?: string }).origenAhorro ?? "")
+      : eDesc !== (movimiento.descripcion ?? "")) ||
     eMedio !== (movimiento.medioPago ?? "") ||
     eObs !== (movimiento.observaciones ?? "") ||
     !!comprobante.file || comprobante.removed;
@@ -107,7 +116,9 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
       // Igual que el alta: sin esto, borrar el campo persiste NaN y rompe todos los KPIs.
       const montoEdit = parseFloat(eMonto);
       if (!montoEdit || montoEdit <= 0) throw new Error(t.errInvalidAmount);
-      const update: Partial<Movimiento> = { monto: montoEdit, observaciones: eObs, descripcion: eDesc.trim() };
+      const update: Partial<Movimiento> = esAhorros
+        ? { monto: montoEdit, observaciones: eObs, origenAhorro: eOrigen }
+        : { monto: montoEdit, observaciones: eObs, descripcion: eDesc.trim() };
       if (!isLocked) update.medioPago = eMedio;
       if (canComprobante) {
         if (comprobante.file) {
@@ -202,17 +213,36 @@ export function MovementDetail({ open, movimiento, config, recurrentes, money, u
               )}
             </div>
           )}
-          {/* Monto (30%) + Descripción (70%) — ambos editables (descripción también en Sueldo). */}
-          <div style={{ display: "grid", gridTemplateColumns: "30% 70%", gap: 10, marginBottom: 14 }}>
+          {/* Monto (30%) + Descripción (70%) — ambos editables (descripción también en Sueldo).
+              En Ahorros, la descripción es un ORIGEN de una lista cerrada (pills), no texto libre. */}
+          <div style={{ display: "grid", gridTemplateColumns: esAhorros ? "1fr" : "30% 70%", gap: 10, marginBottom: 14 }}>
             <div>
               <div className="label">{t.amount}</div>
               <input className="input" style={{ fontFamily: "var(--font-mono)" }} type="number" inputMode="decimal" value={eMonto} onChange={(e) => setEMonto(e.target.value)} />
             </div>
-            <div>
-              <div className="label">{t.description}</div>
-              <input className="input" value={eDesc} onChange={(e) => setEDesc(e.target.value)} />
-            </div>
+            {!esAhorros && (
+              <div>
+                <div className="label">{t.description}</div>
+                <input className="input" value={eDesc} onChange={(e) => setEDesc(e.target.value)} />
+              </div>
+            )}
           </div>
+          {esAhorros && (
+            <div style={{ marginBottom: 14 }}>
+              <div className="label">{t.origin}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2, scrollbarWidth: "none" }}>
+                {(config?.origenesAhorro.filter((o) => o.activo || o.nombre === eOrigen) ?? []).map((o) => (
+                  <button key={o.nombre} type="button" onClick={() => setEOrigen(o.nombre)}
+                    className="pill" style={{
+                      flexShrink: 0,
+                      borderColor: eOrigen === o.nombre ? "var(--blue)" : "var(--border)",
+                      background: eOrigen === o.nombre ? "var(--blue-dim)" : "transparent",
+                      color: eOrigen === o.nombre ? "var(--blue)" : "var(--muted)",
+                    }}>{o.nombre}</button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Medio de pago: no aplica al Sueldo (ancla del período). */}
           {!isLocked && (
             <div style={{ marginBottom: 14 }}>
