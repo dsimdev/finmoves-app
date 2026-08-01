@@ -133,7 +133,10 @@ export async function getDocs(refOrQuery: FakeCollectionRef | FakeQuery) {
     });
   }
   return {
-    docs: docs.map(({ id, data }) => ({ id, data: () => data })),
+    // `ref` imita QueryDocumentSnapshot.ref del SDK real (get ref() en lite-api/snapshot.ts) —
+    // sin esto, código real que hace `batch.update(d.ref, ...)` (válido y usado en el propio
+    // repo) rompe solo contra el fake, no contra Firestore de verdad.
+    docs: docs.map(({ id, data }) => ({ id, data: () => data, ref: doc({}, `${collectionPath}/${id}`) })),
     empty: docs.length === 0,
   };
 }

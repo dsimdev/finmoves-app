@@ -47,3 +47,14 @@ export function renombrarTemplate(
   delete next[actual];
   return next;
 }
+
+/** Devuelve el template sin la key de la categoría borrada, o null si no la tenía. */
+export function quitarDeTemplate(
+  template: Record<string, number> | undefined,
+  categoria: string,
+): Record<string, number> | null {
+  if (!template || !(categoria in template)) return null;
+  const next = { ...template };
+  delete next[categoria];
+  return next;
+}

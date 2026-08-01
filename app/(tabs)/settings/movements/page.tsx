@@ -13,7 +13,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CategoriaIcono, CategoriaGlifo } from "@/components/ui/CategoriaIcono";
 import { visualDeCategoria, ICONOS_LISTA, COLORES_LISTA, COLORES_CATEGORIA } from "@/utils/categoria-visual";
 import { validarRename } from "@/utils/rename-categoria";
-import { renombrarCategoria } from "@/services/firebase/rename-categoria";
+import { renombrarCategoria, eliminarCategoria } from "@/services/firebase/rename-categoria";
 import { balancePresupuesto } from "@/utils/presupuesto-tope";
 import { agruparPorPeriodo } from "@/utils/periodo";
 import { useMoney } from "@/hooks/useHideValues";
@@ -127,7 +127,23 @@ export default function MovementsSettings() {
   const toggleMed = (n: string) => { const next = mediosRef.current.map(m => m.nombre === n ? { ...m, activo: !m.activo } : m); mediosRef.current = next; setLocalMedios(next); scheduleSave(); };
   const toggleOri = (n: string) => { const next = origRef.current.map(o => o.nombre === n ? { ...o, activo: !o.activo } : o); origRef.current = next; setLocalOrigenes(next); scheduleSave(); };
 
-  const delCat = (n: string) => { const next = catsRef.current.filter(c => c.nombre !== n); catsRef.current = next; setLocalCats(next); setPendingDelete(null); persist(); };
+  // Borrar categoría: a diferencia de medios/orígenes (mutación local + persist genérico), usa
+  // el servicio dedicado — limpia también la key del presupuestoTemplate y desactiva los
+  // recurrentes que la referenciaban (si no, "Games" borrada seguía apareciendo en Presupuesto
+  // y sus recordatorios seguían disparando).
+  const [deletingCat, setDeletingCat] = useState(false);
+  const delCat = async (n: string) => {
+    if (!user?.uid || !config) return;
+    setDeletingCat(true);
+    try {
+      await eliminarCategoria(user.uid, n, config);
+      const next = catsRef.current.filter(c => c.nombre !== n);
+      catsRef.current = next; setLocalCats(next);
+      refresh();
+      setPendingDelete(null);
+    } catch (err) { setSaveMsg({ ok: false, text: dbErrorMessage(err, t) }); setTimeout(() => setSaveMsg(null), 3000); }
+    finally { setDeletingCat(false); }
+  };
   const delMed = (n: string) => { const next = mediosRef.current.filter(m => m.nombre !== n); mediosRef.current = next; setLocalMedios(next); setPendingDelete(null); persist(); };
   const delOri = (n: string) => { const next = origRef.current.filter(o => o.nombre !== n); origRef.current = next; setLocalOrigenes(next); setPendingDelete(null); persist(); };
   const confirmDelete = () => { if (!pendingDelete) return; if (pendingDelete.kind === "cat") delCat(pendingDelete.nombre); else if (pendingDelete.kind === "med") delMed(pendingDelete.nombre); else delOri(pendingDelete.nombre); };
@@ -370,7 +386,7 @@ export default function MovementsSettings() {
       )}
 
       {pendingDelete && (
-        <ConfirmModal title={t.delete} confirmLabel={t.yesDelete} cancelLabel={t.cancel} confirmColor="var(--red)" onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)}>
+        <ConfirmModal title={t.delete} confirmLabel={t.yesDelete} cancelLabel={t.cancel} confirmColor="var(--red)" loading={pendingDelete.kind === "cat" && deletingCat} onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>{pendingDelete.nombre}</div>
             <div>{t.actionIrreversible}</div>
