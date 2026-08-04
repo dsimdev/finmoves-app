@@ -4,6 +4,12 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.105.3] — 2026-07-31
+
+Arreglos menores o correcciones de bugs. Sin cambios visibles.
+
+---
+
 ## [2.105.2] — 2026-07-31
 
 ### Arreglos de carga y edición de movimientos
