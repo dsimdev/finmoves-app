@@ -87,8 +87,10 @@ export function SwipeToDelete({ onDelete, onEdit, deleteLabel, editLabel, radius
   };
 
   // Al entrar en modo selección (disabled), cerrar si había quedado abierta y no permitir
-  // deslizar: las acciones pasan a la barra de selección, no a la fila.
-  useEffect(() => { if (disabled && pad > 0) setPad(0); }, [disabled, pad]);
+  // deslizar: las acciones pasan a la barra de selección, no a la fila. `pad` es estado real
+  // (el usuario lo controla arrastrando); el patrón "ajustar durante el render" requeriría un
+  // ref mutado en el cuerpo del render, que el compiler de este proyecto rechaza.
+  useEffect(() => { if (disabled && pad > 0) setPad(0); }, [disabled, pad]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (disabled) return; // sin swipe en modo selección

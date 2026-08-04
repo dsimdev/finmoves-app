@@ -7,6 +7,7 @@ import { useAppPrefs } from "@/hooks/useAppPrefs";
 import type { Recordatorio } from "@/services/firebase/recordatorios";
 import type { RecurrenteProyectado } from "@/utils/recurrent-forecast";
 import { fechaISO_AR } from "@/utils/fecha-ar";
+import { useMounted } from "@/hooks/useMounted";
 
 // Calendario de la card de recordatorios. No es un adorno: ES el control de entrada — se
 // navega entre meses y se toca un día para cargar ahí (reemplaza al input de fecha, que
@@ -65,12 +66,15 @@ export function ReminderCalendar({ recordatorios, recurrentes = [], seleccionado
   const wrapRef = useRef<HTMLDivElement>(null);
   const celdaRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [pos, setPos] = useState<{ top: number; left: number; arriba: boolean } | null>(null);
-  const [mounted, setMounted] = useState(false); // el portal necesita document
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted(); // el portal necesita document
 
   // Se posiciona en coordenadas de VIEWPORT (el popover vive en un portal, fuera de la card):
-  // si se anclara dentro, el overflow de la card lo recortaría y abriría scroll.
+  // si se anclara dentro, el overflow de la card lo recortaría y abriría scroll. Requiere
+  // getBoundingClientRect (medida real del DOM ya pintado) — sincronizar con esa medida es el
+  // uso de useLayoutEffect que React documenta como correcto, no el anti-patrón de derivar
+  // estado que ya se pueda calcular en render.
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!seleccionado) { setPos(null); return; }
     const celda = celdaRefs.current[seleccionado];
     // Sin celda visible (el día quedó fuera del mes en vista) no hay dónde anclarlo: se limpia

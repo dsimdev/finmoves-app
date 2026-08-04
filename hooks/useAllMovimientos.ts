@@ -61,8 +61,11 @@ export function useAllMovimientos(userId: string | undefined, revision = 0) {
   const prevUserId = useRef<string | undefined>(undefined);
   // Última revision conocida: las mutaciones locales la guardan en el cache para no
   // auto-invalidarse en la próxima verificación (el bump remoto ya está reflejado acá).
+  // Se sincroniza en un efecto (no mutando el ref directo en el cuerpo del render): los
+  // callbacks async que lo leen (updateLocal, etc.) corren después de cualquier render de
+  // todos modos, así que el tick de diferencia no cambia el comportamiento.
   const revisionRef = useRef(revision);
-  revisionRef.current = revision;
+  useEffect(() => { revisionRef.current = revision; }, [revision]);
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const LS_KEY = "finmoves.dolar.hist";
 const TTL = 24 * 60 * 60 * 1000;
@@ -12,19 +12,25 @@ function periodoIdToISO(periodoId: string): string {
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
+// Lee el cache si todavía está vigente (TTL). Inicializador perezoso de useState: hidratar
+// desde cache en el render inicial, no con un setState dentro del efecto.
+function cacheVigente(): Entry[] | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const { ts, entries } = JSON.parse(raw) as { ts: number; entries: Entry[] };
+    return Date.now() - ts < TTL ? entries : null;
+  } catch { return null; }
+}
+
 // Histórico del dólar OFICIAL (bluelytics, evolution.json) para convertir el sueldo de
 // cada período a USD. Cacheado 24h en localStorage.
 export function useDolarHistorico() {
-  const [data, setData] = useState<Entry[] | null>(null);
+  const [data, setData] = useState<Entry[] | null>(cacheVigente);
+  const yaTeniaCache = useRef(data !== null).current;
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const { ts, entries } = JSON.parse(raw) as { ts: number; entries: Entry[] };
-        if (Date.now() - ts < TTL) { setData(entries); return; }
-      }
-    } catch {}
+    if (yaTeniaCache) return; // el cache ya lo cubrió al montar
 
     fetch("https://api.bluelytics.com.ar/v2/evolution.json", { cache: "no-store" })
       .then((r) => r.json())
@@ -38,7 +44,8 @@ export function useDolarHistorico() {
         localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), entries }));
       })
       .catch(() => {});
-  }, []);
+    // yaTeniaCache es fijo (useRef del primer render): correr esto una sola vez al montar.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Oficial del día del período (o el último dato anterior). Null si no hay data.
   const dolarAt = useCallback((periodoId: string): number | null => {

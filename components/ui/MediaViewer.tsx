@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 
 /**
  * Visor a pantalla completa para comprobantes, dentro de la app (sin abrir la
  * URL fea de Storage). Imágenes con pinch-zoom + doble-tap; PDFs en un iframe.
  */
 export function MediaViewer({ src, isPdf, onClose }: { src: string; isPdf: boolean; onClose: () => void }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   useScrollLock(true);
   useModalBack(true, onClose);
   const [t, setT] = useState({ scale: 1, x: 0, y: 0 });
@@ -19,7 +20,6 @@ export function MediaViewer({ src, isPdf, onClose }: { src: string; isPdf: boole
   const lastTap = useRef(0);
   const gesturing = useRef(false);
 
-  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -72,6 +72,12 @@ export function MediaViewer({ src, isPdf, onClose }: { src: string; isPdf: boole
     }
   };
 
+  // Se lee start.current a propósito (sin transición mientras hay un gesto activo). `start`
+  // es ref y no useState porque cambia en cada pointermove del pinch-zoom: convertirlo a
+  // estado dispararía un re-render por movimiento, justo lo que un ref evita.
+  // eslint-disable-next-line react-hooks/refs
+  const sinTransicion = start.current ? "none" : "transform 0.15s";
+
   return createPortal(
     <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(1px)", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}>
       <button onClick={onClose} aria-label="×" style={{ position: "absolute", top: 12, right: 14, zIndex: 2, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", fontSize: 24, width: 40, height: 40, borderRadius: "50%", cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
@@ -82,7 +88,7 @@ export function MediaViewer({ src, isPdf, onClose }: { src: string; isPdf: boole
           style={{ width: "100%", height: "100%", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <img src={src} alt="" draggable={false}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-            style={{ maxWidth: "92%", maxHeight: "88%", objectFit: "contain", borderRadius: 14, boxShadow: "0 10px 40px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.08)", transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`, transition: start.current ? "none" : "transform 0.15s", touchAction: "none", userSelect: "none", cursor: t.scale > 1 ? "grab" : "default" }} />
+            style={{ maxWidth: "92%", maxHeight: "88%", objectFit: "contain", borderRadius: 14, boxShadow: "0 10px 40px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.08)", transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`, transition: sinTransicion, touchAction: "none", userSelect: "none", cursor: t.scale > 1 ? "grab" : "default" }} />
         </div>
       )}
     </div>,

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 import { feedback } from "@/lib/feedback";
 
 /**
@@ -20,8 +21,7 @@ export function ConfirmModal({ title, children, confirmLabel, cancelLabel, confi
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   useScrollLock(true);
   useModalBack(true, onCancel);
   useEffect(() => {

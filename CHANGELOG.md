@@ -4,6 +4,23 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.105.3] — 2026-07-31
+
+### Changed — ESLint cleanup: last 4 real errors resolved
+Closes the incremental lint-cleanup effort from prior releases. `useHint.ts`,
+`ReminderCard.tsx`, `NotificationsBell.tsx`: the `useCallback` dependency array had
+`[user?.uid]`, but the React Compiler infers the whole `user` object as the real
+dependency (it's read as `user.uid` inside the callback body) — changed to `[user]`.
+`reports/page.tsx`: the combined-period object (`periodo`) was rebuilt on every render
+without its own `useMemo`, and two other `useMemo`s downstream depended on it — the
+compiler couldn't guarantee it was stable across renders. Wrapped in `useMemo`.
+
+Only remaining lint errors in the project are the 13 `no-require-imports` in
+`scripts/*.js` (one-off migration scripts, not part of the Next.js build) — out of
+scope for this cleanup.
+
+---
+
 ## [2.105.2] — 2026-07-31
 
 ### Fixed — add always targets the most recent period

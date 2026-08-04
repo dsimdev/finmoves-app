@@ -48,9 +48,13 @@ export default function InvestmentSettings() {
   const tasaAuto = cotizacion ? (monedaInversiones === "EUR" ? cotizacion.oficial_euro ?? null : cotizacion.oficial) : null;
   const tasaEnUso = cotizManualOn && cotizManualVal && parseFloat(cotizManualVal) > 0 ? parseFloat(cotizManualVal) : tasaAuto;
 
-  // ── Hidratar campos desde config ──
+  // ── Hidratar campos desde config ── Los campos son editables (el usuario los tipea); este
+  // efecto los re-sincroniza con Firestore cuando config cambia (carga inicial o tras guardar
+  // desde otra pestaña/dispositivo). Sincronizar con esa fuente externa es el uso de efecto
+  // que React documenta como correcto.
   useEffect(() => {
     if (!config) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPropiaMonto(config.meta.metaPropia?.monto?.toString() ?? "");
     setPropiaFecha(config.meta.metaPropia?.fecha ?? "");
     setFxMonto(config.meta.metaFX?.monto?.toString() ?? "");

@@ -61,17 +61,26 @@ export function DonutChart({ data, size = 80, strokeWidth = 13, selected, onSele
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
   const cx = size / 2;
-  let acc = 0;
   const sel = selected ? data.find(d => d.key === selected) : null;
   const ariaSummary = data.filter(d => d.value > 0)
     .map(d => `${d.label} ${Math.round((d.value / total) * 100)}%`).join(", ");
+  // Offset acumulado por porción, con reduce (sin mutar una variable local durante el
+  // render): cada slice arranca donde terminó la anterior. El acumulado va DENTRO del par
+  // que devuelve el reduce (no en una variable externa), así no hay reasignación fuera de él.
+  const { slices } = data.filter(d => d.value > 0).reduce<{
+    slices: { dash: number; offset: number; color: string; key: string }[];
+    acumulado: number;
+  }>(
+    (out, { value, color, key }) => {
+      const dash = (value / total) * c;
+      return { slices: [...out.slices, { dash, offset: -out.acumulado, color, key }], acumulado: out.acumulado + dash };
+    },
+    { slices: [], acumulado: 0 }
+  );
   return (
     <div role="img" aria-label={ariaSummary} style={{ position: "relative", width: size, height: size, flexShrink: 0 }} onClick={() => onSelect?.(null)}>
       <svg width={size} height={size} aria-hidden="true" style={{ transform: "rotate(-90deg)" }}>
-        {data.filter(d => d.value > 0).map(({ value, color, key }, i) => {
-          const dash = (value / total) * c;
-          const offset = -acc;
-          acc += dash;
+        {slices.map(({ dash, offset, color, key }, i) => {
           return <circle key={i} cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
             strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={offset}
             opacity={selected && selected !== key ? 0.2 : 1}

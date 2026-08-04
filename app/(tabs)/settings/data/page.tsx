@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useData } from "../../data-context";
 import { useT } from "@/hooks/useTranslation";
@@ -26,8 +26,15 @@ export default function DataSettings() {
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [showSyncLog, setShowSyncLog] = useState(false);
   // El sync ya no es automático: el botón "Sincronizar ahora" aparece cuando el backup está
-  // vencido (nunca sincronizó, o pasaron >30 días desde el último).
-  const syncStale = !lastSync || Date.now() - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000;
+  // vencido (nunca sincronizó, o pasaron >30 días desde el último). "Ahora" se fija al montar
+  // (useState perezoso) en vez de leerse en el cálculo: Date.now() es impuro incluso dentro de
+  // un useMemo (mismas deps, resultado distinto según el instante), y esta pantalla no
+  // necesita el segundo exacto — alcanza con "el momento en que se abrió".
+  const [ahora] = useState(() => Date.now());
+  const syncStale = useMemo(
+    () => !lastSync || ahora - lastSync.getTime() > 30 * 24 * 60 * 60 * 1000,
+    [lastSync, ahora]
+  );
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [genBusy, setGenBusy] = useState(false);

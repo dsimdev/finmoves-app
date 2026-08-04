@@ -150,8 +150,9 @@ export default function ReportesPage() {
   // Tendencia y proyección sólo tienen sentido en el período vigente (el más reciente).
   const esPeriodoVigente = activos.length === 1 && activos[0] === periodos[0]?.periodoId;
 
-  // Combina todos los períodos seleccionados en uno virtual
-  const periodo = periodosActivos.length > 0 ? {
+  // Combina todos los períodos seleccionados en uno virtual. Memoizado: se usa como
+  // dependencia de otros useMemo más abajo, y sin esto era un objeto nuevo en cada render.
+  const periodo = useMemo(() => periodosActivos.length > 0 ? {
     periodoId: activos.length === 1 ? activos[0]! : t.virtualPeriods(activos.length),
     sueldo: periodosActivos.reduce((sum, p) => sum + p.sueldo, 0),
     extras: periodosActivos.reduce((sum, p) => sum + p.extras, 0),
@@ -165,7 +166,7 @@ export default function ReportesPage() {
     moveAhorros: periodosActivos.reduce((sum, p) => sum + p.moveAhorros, 0),
     pct: periodosActivos.length > 0 ? Math.round((periodosActivos.reduce((sum, p) => sum + p.gastado, 0) / periodosActivos.reduce((sum, p) => sum + p.total, 0)) * 100) : 0,
     movimientos: periodosActivos.flatMap((p) => p.movimientos),
-  } : undefined;
+  } : undefined, [periodosActivos, activos, t]);
 
   // Para comparativa y ritmo, usa el primer período (sólo si es un período individual)
   const idx1 = activos.length === 1 && activos[0] ? periodos.findIndex((p) => p.periodoId === activos[0]) : -1;
@@ -317,9 +318,13 @@ export default function ReportesPage() {
     updateDoc(doc(db, `users/${user.uid}/config/meta`), { "meta.ahorrosAcumSeedPeriodoId": newSeedId });
   }, [user?.uid, !!config, !!seedPeriodoId, periodos.length]);
 
-  // Cargar presupuesto del período activo (solo si hay un único período seleccionado)
+  // Cargar presupuesto del período activo (solo si hay un único período seleccionado). Al
+  // cambiar de período hay que ir a buscar su presupuesto a Firestore — sincronizar con ese
+  // fetch es el uso de efecto que React documenta como correcto; showBudget se resetea junto
+  // porque el presupuesto mostrado ya no corresponde al período nuevo hasta que llegue.
   const activoPeriodoId = activos.length === 1 ? (activos[0] ?? null) : null;
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowBudget(false);
     if (!user?.uid || !activoPeriodoId) { setPresupuesto(null); return; }
     obtenerPresupuesto(user.uid, activoPeriodoId).then(setPresupuesto).catch(() => setPresupuesto(null));

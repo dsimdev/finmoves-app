@@ -42,7 +42,10 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
 
   const [bioAvail, setBioAvail] = useState(false);
-  const [pushAvail, setPushAvail] = useState(false);
+  // pushSupported() es sincrónica: sale del inicializador de useState. bioOn depende de
+  // user?.uid, que puede llegar después del primer render, así que se re-sincroniza en el
+  // efecto de abajo (no se puede resolver solo con un inicializador).
+  const [pushAvail] = useState(pushSupported);
   const [bioOn, setBioOn] = useState(false);
   const [pushOn, setPushOn] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
@@ -52,9 +55,11 @@ export default function OnboardingPage() {
     if (!authLoading && !user) router.replace("/login");
   }, [authLoading, user, router]);
 
+  // isBiometricEnabledFor es sincrónica pero depende de user?.uid (async por auth) — se
+  // resuelve acá, no en el inicializador de bioOn.
   useEffect(() => {
     platformAuthenticatorAvailable().then(setBioAvail);
-    setPushAvail(pushSupported());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBioOn(isBiometricEnabledFor(user?.uid));
     isPushEnabled().then(setPushOn);
   }, [user?.uid]);

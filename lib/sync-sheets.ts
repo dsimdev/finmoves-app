@@ -40,7 +40,7 @@ export async function syncUserMovimientosToSheet(
     // una nueva, guarda su ID y reintenta como FULL (la hoja nueva arranca vacía).
     const sheets = await getSheetsClient();
     const escribir = async () => {
-      let rows = toRows(snap);
+      const rows = toRows(snap);
       if (!full && rows.length === 0) return rows; // incremental sin novedades: nada que escribir
       const sheetName = await getSheetName(sheets, spreadsheetId); // 404 acá si no existe
       if (full) {

@@ -20,8 +20,12 @@ export function LockScreen({ onUnlock, onUsePassword }: { onUnlock: () => void; 
     else setFailed(true);
   }, [onUnlock]);
 
-  // Intento automático al montar
+  // Intento automático al montar. `attempt` llama setVerifying(true) ANTES del primer await
+  // (para mostrar "verificando…" desde que arranca) — el lint lo marca como si fuera un
+  // setState directo en el efecto, pero es el patrón correcto de "estado de carga antes de una
+  // operación async", no el anti-patrón que la regla busca (derivar estado de deps/props).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     attempt();
   }, [attempt]);
 

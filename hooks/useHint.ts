@@ -27,7 +27,7 @@ export function useHint(key: string): [boolean, () => void] {
     setDoc(doc(db, `users/${user.uid}/config/meta`),
       { meta: { hintsVistos: { [key]: true } } }, { merge: true },
     ).catch(() => {});
-  }, [user?.uid, key, patchConfigMeta, config?.meta.hintsVistos]);
+  }, [user, key, patchConfigMeta, config?.meta.hintsVistos]);
 
   return [show, dismiss];
 }

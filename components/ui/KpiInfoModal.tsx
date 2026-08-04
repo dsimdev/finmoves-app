@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useModalBack } from "@/hooks/useModalBack";
+import { useMounted } from "@/hooks/useMounted";
 
 /**
  * Card flotante para el detalle de un KPI de Reportes: número exacto (sin abreviar)
@@ -16,8 +17,7 @@ export function KpiInfoModal({ title, value, explain, color, onClose }: {
   color?: string;
   onClose: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   useScrollLock(true);
   useModalBack(true, onClose);
   useEffect(() => {
