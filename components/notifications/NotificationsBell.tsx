@@ -92,7 +92,7 @@ export function NotificationsBell() {
   const cargar = useCallback(() => {
     if (!user?.uid) return;
     listarNotificaciones(user.uid).then(setItems).catch(() => {});
-  }, [user?.uid]);
+  }, [user]);
 
   // Lectura única al montar (por batería, como el resto de la app). Se refresca al abrir.
   useEffect(() => { cargar(); }, [cargar]);

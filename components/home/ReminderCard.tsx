@@ -44,7 +44,7 @@ export function ReminderCard({ open, onClose }: { open: boolean; onClose: () => 
   const cargar = useCallback(() => {
     if (!user?.uid) return;
     listarRecordatorios(user.uid).then(setLista).catch(() => {});
-  }, [user?.uid]);
+  }, [user]);
   useEffect(() => { if (open) cargar(); }, [open, cargar]);
 
   // Los del día elegido: se listan sobre el form para poder borrarlos sin ir a Configuración.
