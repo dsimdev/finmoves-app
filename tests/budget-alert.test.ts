@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoriasEnRiesgo, partirPorEstado, MIN_DIAS_PARA_PROYECTAR } from "@/utils/budget-alert";
+import { categoriasEnRiesgo, partirPorEstado, pctPresupuestoCategoria, MIN_DIAS_PARA_PROYECTAR } from "@/utils/budget-alert";
 
 // Un período dura 30 días. Proyección = gastado / diasTranscurridos * 30.
 // El umbral de disparo es 1.05× el presupuesto.
@@ -105,5 +105,32 @@ describe("categoriasEnRiesgo", () => {
     expect(categoriasEnRiesgo({ Comida: 7000 }, presu, 12, ["Comida"])).toHaveLength(0);
     // Período nuevo (dedup vacío) → vuelve a poder avisar.
     expect(categoriasEnRiesgo({ Comida: 6000 }, presu, 10, [])).toHaveLength(1);
+  });
+});
+
+describe("pctPresupuestoCategoria", () => {
+  it("suma el monto en curso al gastado antes de calcular el %", () => {
+    // 8000 ya gastado + 500 en curso = 8500 de 10000 → 85%.
+    expect(pctPresupuestoCategoria("Comida", { Comida: 8000 }, { Comida: 10000 }, 500)).toBe(85);
+  });
+
+  it("devuelve el % aunque no haya gasto previo (categoría nueva este período)", () => {
+    expect(pctPresupuestoCategoria("Comida", {}, { Comida: 10000 }, 3000)).toBe(30);
+  });
+
+  it("puede superar 100 (categoría ya excedida)", () => {
+    expect(pctPresupuestoCategoria("Comida", { Comida: 9500 }, { Comida: 10000 }, 1000)).toBe(105);
+  });
+
+  it("null si la categoría no tiene presupuesto puesto", () => {
+    expect(pctPresupuestoCategoria("Ocio", { Ocio: 1000 }, { Comida: 10000 }, 500)).toBeNull();
+  });
+
+  it("null si el presupuesto de la categoría es 0", () => {
+    expect(pctPresupuestoCategoria("Comida", {}, { Comida: 0 }, 500)).toBeNull();
+  });
+
+  it("ignora un monto en curso negativo (no debería pasar, pero no debe restar)", () => {
+    expect(pctPresupuestoCategoria("Comida", { Comida: 8000 }, { Comida: 10000 }, -500)).toBe(80);
   });
 });

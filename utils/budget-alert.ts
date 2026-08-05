@@ -87,3 +87,21 @@ export const partirPorEstado = (cats: CategoriaEnRiesgo[]) => ({
   excedidas: cats.filter((c) => c.excedida).sort((a, b) => b.pctGastado - a.pctGastado),
   enRiesgo: cats.filter((c) => !c.excedida),
 });
+
+/**
+ * % REAL (no proyectado) del presupuesto de una categoría, sumando un monto en curso — para
+ * el chip del alta, donde importa "cuánto llevás gastado ya", no la proyección a 30 días del
+ * cron (que puede marcar riesgo con poco gastado si el período recién empezó, confuso en el
+ * momento de cargar). null si la categoría no tiene presupuesto puesto (nada que mostrar).
+ */
+export function pctPresupuestoCategoria(
+  categoria: string,
+  gastadoPorCategoria: Record<string, number>,
+  presupuesto: Record<string, number>,
+  montoEnCurso: number
+): number | null {
+  const presu = presupuesto[categoria];
+  if (!(presu > 0)) return null;
+  const gastado = (gastadoPorCategoria[categoria] ?? 0) + Math.max(0, montoEnCurso);
+  return Math.round((gastado / presu) * 100);
+}
