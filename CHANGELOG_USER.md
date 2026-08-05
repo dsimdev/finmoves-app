@@ -4,6 +4,15 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.106.0] — 2026-08-04
+
+### Ves el presupuesto mientras cargás el gasto
+Al elegir categoría en un Gasto nuevo, aparece un chip con el % de tu presupuesto que llevás
+gastado en esa categoría (incluyendo el monto que estás tipeando) — verde, amarillo o rojo
+según cuánto te queda. Antes solo lo veías en Reportes o al día siguiente por notificación.
+
+---
+
 ## [2.105.3] — 2026-07-31
 
 Arreglos menores o correcciones de bugs. Sin cambios visibles.
