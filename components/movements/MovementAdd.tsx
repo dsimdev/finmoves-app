@@ -20,6 +20,9 @@ import { agruparPorPeriodo, formatARS, fechaAPeriodoId } from "@/utils/periodo";
 import { serieTendencia } from "@/utils/reportes";
 import { reservaFX } from "@/utils/reserva";
 import { fxFlags, calcularFX, num } from "@/utils/movement-fx";
+import { pctPresupuestoCategoria } from "@/utils/budget-alert";
+import { colorPct, colorPctDim } from "@/components/reports/format";
+import { obtenerPresupuesto } from "@/services/firebase/presupuestos";
 import { Movimiento, TipoMovimiento, ConfigUsuario } from "@/types";
 import { feedback } from "@/lib/feedback";
 
@@ -77,6 +80,27 @@ export function MovementAdd({ open, movimientos, config, activePeriodoId, prefil
   const serie = useMemo(() => serieTendencia(periodos, config?.meta.ahorrosAcumSeedPeriodoId), [periodos, config?.meta.ahorrosAcumSeedPeriodoId]);
   const ahorrosAcumActivo = serie.find((s) => s.periodoId === activeId)?.ahorrosAcum ?? 0;
   const sinPeriodos = periodos.length === 0;
+
+  // Presupuesto efectivo del período (override puntual en users/{uid}/presupuestos/{periodoId},
+  // o el template general si no hay override) — mismo criterio que Reportes y el cron de
+  // desvío. Se trae al abrir el Sheet, 1 lectura chica (doc único, no colección).
+  const [presupuestoOverride, setPresupuestoOverride] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con las props `open`/`activeId` (repoblar al abrir/cambiar de período), no deriva de otro estado calculable en render
+    if (!open || !user?.uid || !activeId) { setPresupuestoOverride(null); return; }
+    obtenerPresupuesto(user.uid, activeId).then(setPresupuestoOverride).catch(() => setPresupuestoOverride(null));
+  }, [open, user?.uid, activeId]);
+  const presupuestoEfectivo = presupuestoOverride ?? config?.meta.presupuestoTemplate ?? null;
+
+  // Gastado por categoría del período en curso (Gasto y CompraUSD cuentan, igual que en
+  // Reportes y el cron de desvío — ver lib/notifications.ts checkPresupuesto).
+  const gastadoPorCategoria = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const mv of periodoActual?.movimientos ?? []) {
+      if (mv.tipo === "Gasto" || mv.tipo === "CompraUSD") m[mv.categoria] = (m[mv.categoria] ?? 0) + mv.monto;
+    }
+    return m;
+  }, [periodoActual]);
 
   // ── Add state (hook dedicado: 15 campos + reset) ──
   const {
@@ -311,6 +335,13 @@ export function MovementAdd({ open, movimientos, config, activePeriodoId, prefil
   // Quién puede adjuntar comprobantes: el dueño siempre, o quien tenga el permiso
   // habilitado por el dueño (default OFF para no-dueños). Ver panel Admin.
   const canComprobante = isOwner || config?.meta.permisos?.comprobantes === true;
+
+  // % REAL del presupuesto de la categoría elegida, sumando el monto que se está tipeando —
+  // solo para Gasto (Ingreso/Move/FX no tienen presupuesto). null si la categoría no tiene
+  // presupuesto puesto (chip no se muestra).
+  const pctPresupuesto = tipo === "Gasto" && categoria && presupuestoEfectivo
+    ? pctPresupuestoCategoria(categoria, gastadoPorCategoria, presupuestoEfectivo, num(monto))
+    : null;
 
   // Sugerencias de descripción para Gasto: descripciones ya usadas (filtradas por
   // la categoría elegida si hay una), ordenadas por frecuencia. Autocompletado nativo.
@@ -553,6 +584,15 @@ export function MovementAdd({ open, movimientos, config, activePeriodoId, prefil
                   }}>{c.nombre}</button>
               ))}
             </div>
+            {pctPresupuesto != null && (
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8,
+                padding: "5px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                color: colorPct(pctPresupuesto), background: colorPctDim(pctPresupuesto),
+              }}>
+                {t.budgetCategoryPct(pctPresupuesto, categoria)}
+              </div>
+            )}
           </div>
         )}
 

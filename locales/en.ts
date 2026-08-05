@@ -644,6 +644,7 @@ export const en: AppLocale = {
   budgetOfIncome: (n: string) => `of ${n}`,
   budgetCapReached: "You've reached your income cap",
   budgetTemplateOverLast: (n: string) => `Exceeds your last salary (${n})`,
+  budgetCategoryPct: (pct: number, cat: string) => `${pct}% of your ${cat} budget`,
   editBudget: "Edit budget",
   settingsTabBudgets: "Budgets",
 };

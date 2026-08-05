@@ -642,6 +642,7 @@ export const es = {
   budgetOfIncome: (n: string) => `de ${n}`,
   budgetCapReached: "Llegaste al tope de tu ingreso",
   budgetTemplateOverLast: (n: string) => `Supera tu último sueldo (${n})`,
+  budgetCategoryPct: (pct: number, cat: string) => `${pct}% del presupuesto de ${cat}`,
   editBudget: "Editar presupuesto",
   settingsTabBudgets: "Presupuestos",
 };

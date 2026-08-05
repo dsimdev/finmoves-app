@@ -4,6 +4,24 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.106.0] — 2026-08-04
+
+### Added — budget chip when picking a category in the add sheet
+Knowing whether an expense category was headed over its budget only showed up in Reports or
+in the next day's push (`checkPresupuesto`) — never at the actual moment of deciding to spend.
+
+- New `pctPresupuestoCategoria()` in `utils/budget-alert.ts` (pure, 6 tests) — the REAL %
+  (already spent + the amount being typed, over the budget), not the 30-day projection the
+  cron alert uses (which can be confusing early in a period, showing risk with little actually
+  spent).
+- `MovementAdd.tsx` fetches the period's effective budget (a per-period override, or the
+  general template — same rule Reports and the cron already use) when the sheet opens, and
+  shows a color-coded chip (same `colorPct`/`colorPctDim` thresholds used everywhere else)
+  right below the category picker, updating live as the amount is typed. Expense-only; no chip
+  if the category has no budget set.
+
+---
+
 ## [2.105.3] — 2026-07-31
 
 ### Changed — ESLint cleanup: last 4 real errors resolved
