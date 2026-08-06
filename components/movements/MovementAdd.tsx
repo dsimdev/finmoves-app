@@ -9,6 +9,7 @@ import { useT } from "@/hooks/useTranslation";
 import { crearMovimientoConId, nuevoMovimientoId, actualizarMovimiento } from "@/services/firebase/movimientos";
 import { upsertRecurrente } from "@/services/firebase/recurrentes";
 import { recurrentKey } from "@/utils/recurrent-key";
+import { sugerirRecurrente } from "@/utils/recurrent-detection";
 import { crearPlantilla, eliminarPlantilla, usarPlantilla, type Plantilla } from "@/services/firebase/plantillas";
 import { useData } from "@/app/(tabs)/data-context";
 import { uploadComprobante } from "@/lib/storage";
@@ -132,6 +133,12 @@ export function MovementAdd({ open, movimientos, config, activePeriodoId, prefil
   useEffect(() => {
     if (yaEsRecurrente) setRepetir(true);
   }, [yaEsRecurrente, setRepetir]);
+  // Sugerencia pasiva: la misma combinación apareció en 3+ períodos distintos sin estar
+  // marcada como recurrente todavía. Todo en memoria (movimientos ya vienen por props), sin
+  // query nueva. No se muestra si ya es recurrente (yaEsRecurrente cubre ese caso arriba).
+  const sugerenciaRecurrente = ((tipo === "Gasto" || tipo === "Ingreso") && descripcion.trim() && !yaEsRecurrente)
+    ? sugerirRecurrente(movimientos, { tipo, categoria, descripcion, observaciones }, recurrenteKeys)
+    : false;
   // Alta pre-cargada desde una notificación de recurrente: si ya hay una carga que matchea
   // en los últimos ~28 días, la notificación es vieja (este ciclo ya se cargó) → banner de
   // aviso para no meter un duplicado sin querer.
@@ -805,6 +812,13 @@ export function MovementAdd({ open, movimientos, config, activePeriodoId, prefil
               <span style={{ flex: 1 }}>{t.repeatEachPeriod}</span>
             </button>
           )
+        )}
+        {/* Sugerencia pasiva: mismo patrón 3+ períodos sin marcar. Se calla sola si el
+            usuario tilda "repetir" (ya no hace falta insistir) o si deja de cumplir el patrón. */}
+        {sugerenciaRecurrente && !repetir && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)", paddingLeft: 2 }}>
+            {t.recurrentSuggestion}
+          </div>
         )}
       </form>
     </Sheet>

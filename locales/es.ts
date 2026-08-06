@@ -126,6 +126,7 @@ export const es = {
   category: "Categoría",
   description: "Descripción",
   repeatEachPeriod: "Repetir cada período (recordatorio)",
+  recurrentSuggestion: "Ya cargaste esto varias veces — ¿lo marcás como recurrente?",
   alreadyRecurrent: "Ya lo tenés",
   prefillAlreadyLoaded: (d: number) => d === 0 ? "Ya lo cargaste hoy" : d === 1 ? "Ya lo cargaste ayer" : `Ya lo cargaste hace ${d} días`,
   recurrentMovement: "Movimiento recurrente",

@@ -128,6 +128,7 @@ export const en: AppLocale = {
   category: "Category",
   description: "Description",
   repeatEachPeriod: "Repeat each period (reminder)",
+  recurrentSuggestion: "You've loaded this a few times — mark it as recurrent?",
   alreadyRecurrent: "Already set",
   prefillAlreadyLoaded: (d: number) => d === 0 ? "Already loaded today" : d === 1 ? "Already loaded yesterday" : `Already loaded ${d} days ago`,
   recurrentMovement: "Recurring movement",
