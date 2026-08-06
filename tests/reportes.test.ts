@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePeriodoId, estadisticasPeriodos, ritmoGasto, serieTendencia, inflacionPersonal, variacionGastoVsAnterior, progresoMetaPropia, ritmoAhorro, kpisPeriodo } from "@/utils/reportes";
+import { parsePeriodoId, estadisticasPeriodos, ritmoGasto, serieTendencia, inflacionPersonal, variacionGastoVsAnterior, progresoMetaPropia, ritmoAhorro, kpisPeriodo, periodosHastaFecha, ritmoNecesarioParaFecha } from "@/utils/reportes";
 import { agruparPorPeriodo } from "@/utils/periodo";
 import type { PeriodoResumen } from "@/utils/periodo";
 import type { Movimiento } from "@/types";
@@ -309,5 +309,49 @@ describe("kpisPeriodo — día pico y gasto más grande", () => {
     const k = kpisPeriodo(per([mov({ tipo: "Ingreso", categoria: "Sueldo", monto: 500000 })]));
     expect(k.diaMayorGasto).toBeNull();
     expect(k.gastoMasGrande).toBeNull();
+  });
+});
+
+describe("periodosHastaFecha", () => {
+  const hoy = new Date("2026-06-01T00:00:00Z");
+
+  it("redondea hacia arriba: 35 días con período de 30 → 2 períodos, no 1.17", () => {
+    expect(periodosHastaFecha("2026-07-06", 30, hoy)).toBe(2); // 35 días
+  });
+
+  it("exactamente 1 período (30 días) → 1", () => {
+    expect(periodosHastaFecha("2026-07-01", 30, hoy)).toBe(1); // 30 días
+  });
+
+  it("0 si la fecha ya pasó", () => {
+    expect(periodosHastaFecha("2026-05-01", 30, hoy)).toBe(0);
+  });
+
+  it("0 si la fecha es hoy (sin margen)", () => {
+    expect(periodosHastaFecha("2026-06-01", 30, hoy)).toBe(0);
+  });
+
+  it("mínimo 1 período aunque falten pocos días", () => {
+    expect(periodosHastaFecha("2026-06-05", 30, hoy)).toBe(1); // 4 días, redondea a 1 igual
+  });
+
+  it("null con fecha inválida", () => {
+    expect(periodosHastaFecha("", 30, hoy)).toBeNull();
+  });
+});
+
+describe("ritmoNecesarioParaFecha", () => {
+  it("faltante dividido en los períodos disponibles", () => {
+    expect(ritmoNecesarioParaFecha(10000, 4)).toBe(2500);
+  });
+
+  it("0 si la meta ya está alcanzada (faltante ≤ 0)", () => {
+    expect(ritmoNecesarioParaFecha(0, 4)).toBe(0);
+    expect(ritmoNecesarioParaFecha(-500, 4)).toBe(0);
+  });
+
+  it("null sin períodos por delante (fecha ya pasó)", () => {
+    expect(ritmoNecesarioParaFecha(10000, 0)).toBeNull();
+    expect(ritmoNecesarioParaFecha(10000, null)).toBeNull();
   });
 });

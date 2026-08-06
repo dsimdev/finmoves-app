@@ -269,6 +269,7 @@ export const en: AppLocale = {
   savingsGoalOf: (m: string) => `of ${m}`,
   remainingShort: (m: string) => `${m} to go`,
   savingsGoalPeriods: (n: number) => `~${n} ${n === 1 ? "period" : "periods"} to reach it`,
+  goalBehindPace: (m: string, fecha: string) => `You need ${m} more per period to make it by ${fecha}`,
   noSavingsPace: "No net savings to estimate",
   remainingLabel: "Remaining",
   reached: "Reached!",

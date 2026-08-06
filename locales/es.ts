@@ -267,6 +267,7 @@ export const es = {
   savingsGoalOf: (m: string) => `de ${m}`,
   remainingShort: (m: string) => `faltan ${m}`,
   savingsGoalPeriods: (n: number) => `~${n} ${n === 1 ? "período" : "períodos"} para llegar`,
+  goalBehindPace: (m: string, fecha: string) => `Necesitás ${m} más por período para llegar el ${fecha}`,
   noSavingsPace: "Sin ahorro neto para estimar",
   remainingLabel: "Faltan",
   reached: "¡Alcanzada!",
