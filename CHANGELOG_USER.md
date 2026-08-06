@@ -4,6 +4,21 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.109.0] — 2026-08-05
+
+### Te sugiere marcar como recurrente lo que repetís seguido
+Si cargaste el mismo gasto o ingreso (misma categoría y descripción) en 3 períodos distintos
+y todavía no lo marcaste como recurrente, ahora te aparece un aviso debajo del toggle
+"Repetir" sugiriéndotelo. No hace falta que sea el mismo monto — sirve para alquiler con
+ajuste o cuotas que suben de precio.
+
+### Reportes te avisa cuando una categoría se dispara
+En Reportes → Gastos, si una categoría este período gastó más de un 50% por encima de tu
+promedio de los últimos 3 períodos, aparece una sección nueva mostrándotela — además de la
+comparación de siempre contra el período anterior.
+
+---
+
 ## [2.108.0] — 2026-08-04
 
 ### Aviso si no llegás a fin de período

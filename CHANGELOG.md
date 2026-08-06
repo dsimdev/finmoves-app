@@ -4,6 +4,27 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.109.0] — 2026-08-05
+
+### Added — recurrence suggestion and category spending anomaly
+Two independent additions, same pattern as the priority-1 batch: pure function + tests,
+reusing data already in memory (no new Firestore reads).
+
+- New `utils/recurrent-detection.ts` (`sugerirRecurrente`, 8 tests): flags a type+category+
+  description+observations combination that appeared in 3+ **distinct** periods (loads
+  within the same period don't count) and isn't already marked recurrent. No amount-equality
+  requirement — covers rent with an adjustment or a gym fee that goes up. Wired into
+  `MovementAdd.tsx`: shows a passive suggestion line below the "Repeat" toggle, using
+  `movimientos[]` already passed by props. Stays quiet once `repetir` is checked or the
+  combination stops matching.
+- New `anomaliasCategorias` in `utils/reportes.ts` (6 tests): compares the current period's
+  spend per category against the **average** of the previous 3 periods (not just the
+  immediately prior one, which is noisy) and flags categories over +50%
+  (`UMBRAL_ANOMALIA_PCT`). Returns nothing until there's a full 3-period window. Shown in
+  Reports → Gastos tab as a new section, complementing (not replacing) "vs previous period".
+
+---
+
 ## [2.108.0] — 2026-08-04
 
 ### Added — daily pace push notification
