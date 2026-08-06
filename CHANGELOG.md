@@ -4,6 +4,23 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.108.0] — 2026-08-04
+
+### Added — daily pace push notification
+`utils/duracion-disponible.ts` already computed, for Home, how much you can spend per day to
+make it to the end of the period (`porDiaSugerido`) and whether the current pace gets you
+there (`llega`) — but it was passive, you had to open the app to see it. Now it also fires a
+push.
+
+- New `checkGastoPorDia` in `lib/notifications.ts`, same pattern as `checkPresupuesto`/
+  `checkCargaOlvidada`. Fires ONLY when `duracionDisponible.llega === false` (something to
+  fix, not a daily informational ping); re-notifies every 3 days while the issue persists
+  (same cadence as forgotten-entry), and goes quiet on its own once the pace improves.
+- New notification type `"ritmo"` (own icon/color in the bell) instead of reusing
+  `"presupuesto"`, which is about specific categories, not the period's overall pace.
+
+---
+
 ## [2.107.0] — 2026-08-04
 
 ### Added — savings goal pace warning against the target date
