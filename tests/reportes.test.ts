@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePeriodoId, estadisticasPeriodos, ritmoGasto, serieTendencia, inflacionPersonal, variacionGastoVsAnterior, progresoMetaPropia, ritmoAhorro, kpisPeriodo, periodosHastaFecha, ritmoNecesarioParaFecha } from "@/utils/reportes";
+import { parsePeriodoId, estadisticasPeriodos, ritmoGasto, serieTendencia, inflacionPersonal, variacionGastoVsAnterior, progresoMetaPropia, ritmoAhorro, kpisPeriodo, periodosHastaFecha, ritmoNecesarioParaFecha, anomaliasCategorias } from "@/utils/reportes";
 import { agruparPorPeriodo } from "@/utils/periodo";
 import type { PeriodoResumen } from "@/utils/periodo";
 import type { Movimiento } from "@/types";
@@ -353,5 +353,79 @@ describe("ritmoNecesarioParaFecha", () => {
   it("null sin períodos por delante (fecha ya pasó)", () => {
     expect(ritmoNecesarioParaFecha(10000, 0)).toBeNull();
     expect(ritmoNecesarioParaFecha(10000, null)).toBeNull();
+  });
+});
+
+describe("anomaliasCategorias", () => {
+  const per = (id: string, movs: Movimiento[]): PeriodoResumen => ({
+    periodoId: id, sueldo: 0, extras: 0, total: 0, gastado: 0, gastadoPuro: 0,
+    ahorros: 0, resto: 0, disponible: 0, moveDisponible: 0, moveAhorros: 0, pct: 0, movimientos: movs,
+  });
+  const gasto = (categoria: string, monto: number) => mov({ tipo: "Gasto", categoria, monto });
+
+  it("marca una categoría que gastó más del 50% por encima de su promedio de 3 períodos", () => {
+    const anteriores = [
+      per("1/3/2026", [gasto("Salud", 1000)]),
+      per("1/2/2026", [gasto("Salud", 1000)]),
+      per("1/1/2026", [gasto("Salud", 1000)]),
+    ];
+    // Promedio 1000; actual 2000 → +100%, supera el umbral de 50%.
+    const actual = per("1/4/2026", [gasto("Salud", 2000)]);
+    const r = anomaliasCategorias(actual, anteriores, 3);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ categoria: "Salud", actual: 2000, promedio: 1000 });
+    expect(r[0].deltaPct).toBeCloseTo(100);
+  });
+
+  it("NO marca una categoría bajo el umbral (+50%)", () => {
+    const anteriores = [
+      per("1/3/2026", [gasto("Comida", 1000)]),
+      per("1/2/2026", [gasto("Comida", 1000)]),
+      per("1/1/2026", [gasto("Comida", 1000)]),
+    ];
+    // +40%: por debajo del umbral 50%.
+    const actual = per("1/4/2026", [gasto("Comida", 1400)]);
+    expect(anomaliasCategorias(actual, anteriores, 3)).toEqual([]);
+  });
+
+  it("sin historial suficiente (menos períodos que la ventana), no calcula nada", () => {
+    const anteriores = [per("1/2/2026", [gasto("Salud", 1000)])]; // solo 1, pero ventana pide 3
+    const actual = per("1/3/2026", [gasto("Salud", 5000)]);
+    expect(anomaliasCategorias(actual, anteriores, 3)).toEqual([]);
+  });
+
+  it("categoría sin historial previo (promedio 0) no se compara — no hay base", () => {
+    const anteriores = [
+      per("1/3/2026", [gasto("Comida", 1000)]),
+      per("1/2/2026", [gasto("Comida", 1000)]),
+      per("1/1/2026", [gasto("Comida", 1000)]),
+    ];
+    // "Viajes" es nueva este período, sin historial en los 3 anteriores.
+    const actual = per("1/4/2026", [gasto("Comida", 1000), gasto("Viajes", 50000)]);
+    expect(anomaliasCategorias(actual, anteriores, 3)).toEqual([]);
+  });
+
+  it("ordena de mayor a menor desvío", () => {
+    const anteriores = [
+      per("1/3/2026", [gasto("A", 1000), gasto("B", 1000)]),
+      per("1/2/2026", [gasto("A", 1000), gasto("B", 1000)]),
+      per("1/1/2026", [gasto("A", 1000), gasto("B", 1000)]),
+    ];
+    // A: +200% (3000 vs 1000); B: +100% (2000 vs 1000).
+    const actual = per("1/4/2026", [gasto("A", 3000), gasto("B", 2000)]);
+    const r = anomaliasCategorias(actual, anteriores, 3);
+    expect(r.map((x) => x.categoria)).toEqual(["A", "B"]);
+  });
+
+  it("promedia bien con montos distintos en cada período anterior", () => {
+    const anteriores = [
+      per("1/3/2026", [gasto("Ocio", 500)]),
+      per("1/2/2026", [gasto("Ocio", 1000)]),
+      per("1/1/2026", [gasto("Ocio", 1500)]),
+    ];
+    // Promedio = 1000. Actual 2000 → +100%.
+    const actual = per("1/4/2026", [gasto("Ocio", 2000)]);
+    const r = anomaliasCategorias(actual, anteriores, 3);
+    expect(r[0].promedio).toBe(1000);
   });
 });

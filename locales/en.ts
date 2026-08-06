@@ -347,6 +347,8 @@ export const en: AppLocale = {
   kpiToGoalInfo: "Estimated periods to reach your goal keeping this pace.",
   byCategory: "By category",
   vsPrevPeriod: "vs previous period",
+  categoryAnomaly: "unusual spending",
+  vsAverage: (n: number) => `vs ${n}-period average`,
   top5Descriptions: "Top 5 descriptions",
   expensesCount: (n: number) => `${n} expense${n !== 1 ? "s" : ""}`,
   availableIncome: "Total available",

@@ -189,6 +189,54 @@ export function comparativaCategorias(
     .sort((x, y) => y.actual - x.actual);
 }
 
+// ── Anomalía de gasto: actual vs el PROMEDIO de N períodos anteriores ────────
+// comparativaCategorias compara contra el período inmediato anterior (un solo dato, ruidoso:
+// un mes atípico corre la comparación entera). Esto promedia una ventana más ancha — la misma
+// pregunta que categoriasEnRiesgo (utils/budget-alert) responde para el presupuesto, pero
+// contra el propio historial de la categoría en vez de un tope fijo.
+
+export const UMBRAL_ANOMALIA_PCT = 50; // % sobre el promedio para marcar la categoría
+
+export interface AnomaliaCategoria {
+  categoria: string;
+  actual: number;
+  promedio: number;
+  /** (actual - promedio) / promedio × 100. Siempre > 0 (solo se listan los que superan el umbral). */
+  deltaPct: number;
+}
+
+/**
+ * @param actual      período en curso
+ * @param anteriores  períodos previos, del más nuevo al más viejo (se usan los primeros
+ *                    `ventana`); típicamente periodos.slice(1) desde el más reciente
+ * @param ventana     cuántos períodos anteriores promediar
+ */
+export function anomaliasCategorias(
+  actual: PeriodoResumen,
+  anteriores: PeriodoResumen[],
+  ventana: number,
+): AnomaliaCategoria[] {
+  const sumar = (movs: Movimiento[]) => {
+    const m = new Map<string, number>();
+    for (const mv of movs) if (esGasto(mv)) m.set(mv.categoria, (m.get(mv.categoria) ?? 0) + mv.monto);
+    return m;
+  };
+  const historial = anteriores.slice(0, ventana);
+  if (historial.length < ventana) return []; // no hay suficiente historial para un promedio confiable
+
+  const act = sumar(actual.movimientos);
+  const sumasHist = historial.map((p) => sumar(p.movimientos));
+
+  const out: AnomaliaCategoria[] = [];
+  for (const [categoria, a] of act.entries()) {
+    const promedio = sumasHist.reduce((s, m) => s + (m.get(categoria) ?? 0), 0) / historial.length;
+    if (promedio <= 0) continue; // sin historial de esta categoría, no hay base para comparar
+    const deltaPct = ((a - promedio) / promedio) * 100;
+    if (deltaPct > UMBRAL_ANOMALIA_PCT) out.push({ categoria, actual: a, promedio, deltaPct });
+  }
+  return out.sort((x, y) => y.deltaPct - x.deltaPct);
+}
+
 // ── Tendencias: serie por período (más viejo → más nuevo) ────────────────────
 export interface PuntoTendencia {
   periodoId: string;

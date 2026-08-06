@@ -345,6 +345,8 @@ export const es = {
   kpiToGoalInfo: "Períodos estimados para alcanzar tu objetivo manteniendo este ritmo.",
   byCategory: "Por categoría",
   vsPrevPeriod: "vs período anterior",
+  categoryAnomaly: "gasto fuera de lo normal",
+  vsAverage: (n: number) => `vs promedio de ${n} períodos`,
   top5Descriptions: "Top 5 descripciones",
   expensesCount: (n: number) => `${n} gasto${n !== 1 ? "s" : ""}`,
   availableIncome: "Total disponible",

@@ -26,6 +26,7 @@ interface Props {
   avgHistorico: number;
   promPorMov: number | null;
   comp: { categoria: string; actual: number; anterior: number; deltaPct: number | null }[];
+  anomalias: { categoria: string; actual: number; promedio: number; deltaPct: number }[];
   descs: Desc[];
   descsCompra: Set<string>;
   catsConPresu: Cat[];
@@ -49,7 +50,7 @@ interface Props {
 // ritmo, prom. por mov), categorías con presupuesto y comparativa vs anterior.
 export function GastosTab({
   periodo, periodos, activos, anterior, esPeriodoVigente, ritmo, tendenciaGasto, avgHistorico,
-  promPorMov, comp, descs, descsCompra, catsConPresu, catsEditables,
+  promPorMov, comp, anomalias, descs, descsCompra, catsConPresu, catsEditables,
   esCatCompra, presupuesto, presupuestoEfectivo, showBudget, config,
   setShowBudget, setEditingBudget, setModalBudget, setCatModal, setCatAnteriorModal, setModalTop, setKpiInfo,
 }: Props) {
@@ -158,6 +159,29 @@ export function GastosTab({
                     {mag === 0 ? "0" : <>{mag > 0 ? "↑" : "↓"}{Math.abs(mag)}</>}%
                   </span>
                 ); })() : <span style={{ fontSize: 10, color: "var(--red)", minWidth: 48, textAlign: "right" }}>{t.new_}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Anomalía: categorías que este período superaron en +50% el promedio de los 3
+          anteriores. Complementa "vs anterior" (que es ruidoso, un solo período) sin
+          reemplazarlo. */}
+      {anomalias.length > 0 && reportOn("gastos_otros") && (
+        <div className="soft" style={{ marginBottom: 12, background: "linear-gradient(135deg, var(--surface), var(--surface-alt))" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{t.categoryAnomaly}</div>
+          <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 12 }}>{t.vsAverage(3)}</div>
+          {anomalias.map((a) => (
+            <div key={a.categoria} className="row" style={{ padding: "8px 0" }}>
+              <span style={{ fontSize: 13 }}>{a.categoria}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--muted)" }}>{money(a.actual)}</span>
+                {(() => { const mag = deltaMag(a.deltaPct); return (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: deltaColor(a.deltaPct, false), minWidth: 48, textAlign: "right" }}>
+                    ↑{Math.abs(mag)}%
+                  </span>
+                ); })()}
               </div>
             </div>
           ))}

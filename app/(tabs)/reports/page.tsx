@@ -23,7 +23,7 @@ import { obtenerPresupuesto, guardarPresupuesto } from "@/services/firebase/pres
 import { useMoney } from "@/hooks/useHideValues";
 import {
   gastosPorMedioPago, gastosPorDescripcion,
-  kpisPeriodo, ritmoGasto, comparativaCategorias,
+  kpisPeriodo, ritmoGasto, comparativaCategorias, anomaliasCategorias,
   serieTendencia, parsePeriodoId, diasSinGastos,
   historialSueldo, proyectarAhorros, ritmoAhorro,
   progresoMetaUSD, periodosParaMetaUSD, estadisticasPeriodos,
@@ -192,6 +192,11 @@ export default function ReportesPage() {
   // Ritmo y comparativa sólo aplican a un período individual
   const ritmo = periodo && activos.length === 1 ? ritmoGasto(periodo, finPeriodo) : null;
   const comp = periodo && activos.length === 1 ? comparativaCategorias(periodo, anterior) : [];
+  // Anomalía: actual vs el PROMEDIO de los 3 períodos anteriores (no solo el inmediato, que es
+  // un dato ruidoso). Mismos períodos que anterior, solo que toma 3 en vez de 1.
+  const anomalias = periodo && activos.length === 1 && idx1 >= 0
+    ? anomaliasCategorias(periodo, periodos.slice(idx1 + 1), 3)
+    : [];
 
   // ── Estadísticas avanzadas (Gastos) ──
   const promPorMov = periodo ? (() => {
@@ -710,7 +715,7 @@ export default function ReportesPage() {
               <GastosTab
                 periodo={periodo} periodos={periodos} activos={activos} anterior={anterior}
                 esPeriodoVigente={esPeriodoVigente} ritmo={ritmo} tendenciaGasto={tendenciaGasto} avgHistorico={avgHistorico}
-                promPorMov={promPorMov} comp={comp} descs={descs} descsCompra={descsCompra}
+                promPorMov={promPorMov} comp={comp} anomalias={anomalias} descs={descs} descsCompra={descsCompra}
                 catsConPresu={catsConPresu} catsEditables={catsEditables}
                 esCatCompra={esCatCompra} presupuesto={presupuesto} presupuestoEfectivo={presupuestoEfectivo}
                 showBudget={showBudget} config={config} setShowBudget={setShowBudget} setEditingBudget={setEditingBudget}
