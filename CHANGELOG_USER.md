@@ -4,6 +4,15 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.108.0] — 2026-08-04
+
+### Aviso si no llegás a fin de período
+Si al ritmo que venís gastando no vas a llegar a fin de período, ahora te llega una
+notificación con cuánto podés gastar por día para llegar — antes solo lo veías si abrías la
+app y mirabas Inicio.
+
+---
+
 ## [2.107.0] — 2026-08-04
 
 ### Te avisa si vas atrasado con tu meta de ahorro

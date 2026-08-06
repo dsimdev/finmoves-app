@@ -4,6 +4,7 @@ import { agruparPorPeriodo } from "@/utils/periodo";
 import { parsePeriodoId } from "@/utils/reportes";
 import { shouldRemind, type RecReminderState } from "@/utils/recurrent-reminder";
 import { categoriasEnRiesgo, partirPorEstado } from "@/utils/budget-alert";
+import { duracionDisponible, duracionMedianaPeriodos } from "@/utils/duracion-disponible";
 import { avanzarHastaFutura } from "@/utils/recordatorio-repeat";
 import { fechaISO_AR, fechaISO_AR_haceDias } from "@/utils/fecha-ar";
 import { Timestamp } from "firebase-admin/firestore";
@@ -12,6 +13,7 @@ import type { Movimiento, ConfigUsuario } from "@/types";
 const DOLAR_THRESHOLD_PCT = 3;
 const SUELDO_REMINDER_DAYS = 30; // si pasó ~1 mes sin abrir período nuevo
 const CARGA_OLVIDADA_DIAS = 3;   // días sin registrar ningún movimiento
+const GASTO_POR_DIA_REAVISO_DIAS = 3; // mientras siga sin llegar a fin de período
 // Ventana de lectura (por fecha) para hallar la última carga de un recurrente. Debe cubrir
 // el umbral máximo del esquema (día 28 + margen) para que la "última carga" no se pierda:
 // si cae fuera de la ventana, el recurrente se ve como nunca-cargado y usa createdAt.
@@ -110,6 +112,8 @@ async function notifyUser(uid: string, ctx: GlobalCtx): Promise<void> {
         // Desvío de presupuesto: proyecta el cierre del período por categoría y avisa si va
         // camino a pasarse (necesita config para el presupuesto y los movimientos del período).
         await guardDiario(checkPresupuesto(uid, recientes, config, notify, updates));
+        // Ritmo de gasto: avisa si al ritmo actual el disponible no llega a fin de período.
+        await guardDiario(checkGastoPorDia(uid, recientes, notify, updates));
       }
       // Recurrentes y recordatorios NO dependen de config/meta (viven en sus colecciones):
       // se chequean aunque el doc de config falte.
@@ -356,6 +360,35 @@ async function checkPresupuesto(uid: string, movs: Movimiento[], config: ConfigU
   // Dedup SOLO si el push se confirmó (regla v2.71.0). Se marcan TODAS las avisadas ahora y se
   // deja únicamente la entrada del período en curso, para no acumular períodos viejos.
   if (ok) updates.budgetAvisos = { [actual.periodoId]: [...avisadas, ...todas.map((c) => c.categoria)] };
+}
+
+// "Podés gastar $X hoy": avisa SOLO si al ritmo actual el disponible no llega a fin de
+// período (duracionDisponible.llega === false) — mismo espíritu que el desvío de presupuesto,
+// avisar cuando hay que corregir algo, no un informativo diario. Reavisa cada
+// GASTO_POR_DIA_REAVISO_DIAS mientras el problema persista (igual cadencia que carga
+// olvidada): si en el ínterin cargás algo y el ritmo mejora, el check simplemente deja de
+// disparar solo (no hace falta limpiar el dedup a mano).
+async function checkGastoPorDia(uid: string, movs: Movimiento[], notify: Record<string, unknown>, updates: Record<string, unknown>) {
+  const periodos = agruparPorPeriodo(movs);
+  if (periodos.length === 0) return;
+  const actual = periodos[0]; // el más nuevo = período en curso
+
+  const inicio = parsePeriodoId(actual.periodoId);
+  const dias = Math.max(1, Math.round((Date.now() - inicio.getTime()) / 86_400_000));
+  const largo = duracionMedianaPeriodos(periodos.map((p) => parsePeriodoId(p.periodoId)));
+  // Mismo criterio que Inicio: lo que REALMENTE baja el disponible (gasto + lo movido a
+  // ahorros), no solo gastadoPuro (ver comentario en app/(tabs)/page.tsx).
+  const consumido = actual.gastado + actual.moveAhorros;
+  const dur = duracionDisponible(actual.disponible, consumido, dias, largo);
+  if (dur.llega || dur.porDiaSugerido === null) return;
+
+  const hoy = fechaISO_AR();
+  const last = notify.gastoPorDiaLastNotified as string | undefined;
+  if (last && diasEntre(last, hoy) < GASTO_POR_DIA_REAVISO_DIAS) return;
+
+  const body = `A este ritmo no llegás a fin de período. Podés gastar ${Math.round(dur.porDiaSugerido).toLocaleString("es-AR")} por día para llegar.`;
+  const ok = await pushYGuardar(uid, "ritmo", { title: "Ritmo de gasto", body, tag: `gastodia-${actual.periodoId}`, url: "/" }, "/");
+  if (ok) updates.gastoPorDiaLastNotified = hoy;
 }
 
 // Recordatorio de sueldo: si pasó más de ~1 mes desde el último período abierto.
