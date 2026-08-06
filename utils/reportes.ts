@@ -398,6 +398,39 @@ export function periodosParaMetaARS(
   return Math.ceil((metaARS - acumActual) / ritmo);
 }
 
+// ── Ritmo necesario para llegar a una FECHA objetivo ─────────────────────
+// La meta tiene una fecha opcional que hoy es puramente decorativa (se muestra, nunca se
+// cruza contra el ritmo real). Es el inverso exacto de periodosParaMetaARS: en vez de
+// "¿cuántos períodos faltan al ritmo actual?", "¿cuántos períodos HAY hasta la fecha, y qué
+// ritmo hace falta para llegar en esa cantidad?".
+
+/**
+ * Períodos entre hoy y una fecha objetivo, dada la duración típica del período (ver
+ * utils/duracion-disponible duracionMedianaPeriodos). Redondea hacia arriba: si faltan 35
+ * días y el período dura 30, hay que llegar "en 2 períodos", no en 1.17.
+ *
+ * @returns 0 si la fecha ya pasó o es hoy (no hay margen); null si la fecha es inválida.
+ */
+export function periodosHastaFecha(fechaObjetivoISO: string, diasPorPeriodo: number, hoy = new Date()): number | null {
+  const [y, m, d] = fechaObjetivoISO.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const objetivo = Date.UTC(y, m - 1, d);
+  const hoyUTC = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
+  const diasFaltantes = Math.round((objetivo - hoyUTC) / 86_400_000);
+  if (diasFaltantes <= 0) return 0;
+  return Math.max(1, Math.ceil(diasFaltantes / diasPorPeriodo));
+}
+
+/**
+ * Ritmo (por período) necesario para cubrir `faltante` en `periodos` períodos. null si no hay
+ * períodos por delante (0 o negativo) — no hay margen para calcular un ritmo.
+ */
+export function ritmoNecesarioParaFecha(faltante: number, periodos: number | null): number | null {
+  if (periodos === null || periodos <= 0) return null;
+  if (faltante <= 0) return 0; // ya alcanzada, no hace falta ritmo
+  return faltante / periodos;
+}
+
 // ── Estadísticas de metas de ahorro ──────────────────────────────────────
 
 export function progresoMetaUSD(ahorrosAcumARS: number, metaUSD: number, cotizacionBlue: number): number {

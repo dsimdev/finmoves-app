@@ -4,6 +4,22 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.107.0] — 2026-08-04
+
+### Added — savings goal pace warning against the target date
+The goal's optional target date was purely decorative — shown, never checked against the
+actual pace. `periodosParaMetaARS` already computed the direct case (current pace → periods
+left); this adds the inverse.
+
+- Two new pure functions in `utils/reportes.ts` (10 tests): `periodosHastaFecha()` converts
+  the target date into a period count (using the user's real median period duration, not a
+  fixed 30 days), and `ritmoNecesarioParaFecha()` = remaining / periods.
+- Both goal cards (own-currency and FX) in Investments now show a warning when a date is set
+  and the current pace won't make it — "You need $X more per period to make it by [date]".
+  Silent when there's no date or the pace already covers it (no permanent green badge).
+
+---
+
 ## [2.106.0] — 2026-08-04
 
 ### Added — budget chip when picking a category in the add sheet

@@ -24,7 +24,8 @@ function fechaCortaConAnio(fecha: string): string {
   return fecha;
 }
 import { agruparPorPeriodo } from "@/utils/periodo";
-import { serieTendencia, progresoMetaPropia, parsePeriodoId, ritmoAhorro, desdeSeed } from "@/utils/reportes";
+import { serieTendencia, progresoMetaPropia, parsePeriodoId, ritmoAhorro, desdeSeed, periodosHastaFecha, ritmoNecesarioParaFecha } from "@/utils/reportes";
+import { duracionMedianaPeriodos } from "@/utils/duracion-disponible";
 import { SimuladorMeta } from "@/components/investments/SimuladorMeta";
 import { useInflacionIPC } from "@/hooks/useInflacionIPC";
 import { useMoney, MASK } from "@/hooks/useHideValues";
@@ -151,10 +152,27 @@ export default function DolaresPage() {
   const metaPropia = config?.meta.metaPropia;
   // Deflactar solo en ARS: en USD/EUR el IPC argentino no aplica (identidad).
   const deflateAhorro = monedaPrincipal === "ARS" ? deflatar : undefined;
-  const progresoPropia = metaPropia?.monto ? progresoMetaPropia(serieAhorros, metaPropia.monto, deflateAhorro, seedId) : null;
+  // Memoizado: se usa como dependencia de boardGrupos (useMemo) más abajo, y sin esto era un
+  // objeto nuevo en cada render.
+  const progresoPropia = useMemo(
+    () => metaPropia?.monto ? progresoMetaPropia(serieAhorros, metaPropia.monto, deflateAhorro, seedId) : null,
+    [metaPropia, serieAhorros, deflateAhorro, seedId]
+  );
   // Ritmo de ahorro (moneda propia) para el simulador de la meta propia.
   const ritmoPropio = useMemo(() => ritmoAhorro(serieAhorros, deflateAhorro, seedId), [serieAhorros, deflateAhorro, seedId]);
   const fxLabel = historialUSD.length > 0 && historialEUR.length > 0 ? "divisas" : historialEUR.length > 0 ? "EUR" : "U$D";
+
+  // Ritmo necesario para llegar a la FECHA de la meta propia (hoy la fecha es decorativa:
+  // se muestra pero nunca se cruza contra el ritmo real). Solo se calcula con fecha puesta;
+  // solo se avisa si el ritmo actual no alcanza (silencio si vas bien o adelantado).
+  const diasPorPeriodo = useMemo(
+    () => duracionMedianaPeriodos(periodos.map((p) => parsePeriodoId(p.periodoId))),
+    [periodos]
+  );
+  const ritmoNecesarioPropia = metaPropia?.fecha && progresoPropia && progresoPropia.faltante > 0
+    ? ritmoNecesarioParaFecha(progresoPropia.faltante, periodosHastaFecha(metaPropia.fecha, diasPorPeriodo))
+    : null;
+  const vaAtrasadoPropia = ritmoNecesarioPropia !== null && (ritmoPropio === null || ritmoPropio < ritmoNecesarioPropia);
 
   // Ritmo/proyección/mejor-peor: mismas reglas que Reportes (ritmoAhorro): delta REAL del
   // acumulado, ventana desde el seed (período en curso incluido) y deflactado en ARS.
@@ -217,6 +235,13 @@ export default function DolaresPage() {
   const periodosParaMeta = metaMonto && ritmoFX > 0
     ? Math.ceil(Math.max(0, metaMonto - totalDisplay) / ritmoFX) : null;
   const proyUSD = promAhorroUSD !== null ? Math.max(0, totalDisplay + ritmoFX * 3) : null;
+
+  // Ritmo necesario para llegar a la fecha de la meta FX (mismo criterio que la meta propia).
+  const faltanteFX = metaMonto ? Math.max(0, metaMonto - totalDisplay) : 0;
+  const ritmoNecesarioFX = config?.meta.metaFX?.fecha && faltanteFX > 0
+    ? ritmoNecesarioParaFecha(faltanteFX, periodosHastaFecha(config.meta.metaFX.fecha, diasPorPeriodo))
+    : null;
+  const vaAtrasadoFX = ritmoNecesarioFX !== null && ritmoFX < ritmoNecesarioFX;
 
   // ── Tablero de escritorio ──
   // Los mismos números que las cards del móvil, pero sueltos: en pantalla ancha el marco de
@@ -364,6 +389,13 @@ export default function DolaresPage() {
             ? t.noSavingsPace
             : progresoPropia.periodos === 0 ? t.reached : t.savingsGoalPeriods(progresoPropia.periodos)}
         </div>
+        {/* Ritmo vs fecha objetivo: silencio si vas bien/adelantado, solo avisa si el ritmo
+            actual no alcanza para llegar a tiempo. La fecha era puramente decorativa antes. */}
+        {vaAtrasadoPropia && ritmoNecesarioPropia !== null && (
+          <div style={{ fontSize: 11, color: "var(--yellow)", marginTop: 6 }}>
+            {t.goalBehindPace(`${simboloPropio} ${Math.round(ritmoNecesarioPropia).toLocaleString("es-AR")}`, fechaCortaConAnio(metaPropia.fecha ?? ""))}
+          </div>
+        )}
         {/* Simulador: solo tiene sentido si todavía falta (no en meta ya alcanzada). Una
             perilla: cuánto más ahorrás por período (va a ahorros en pesos). */}
         {!alcanzada && (
@@ -686,6 +718,13 @@ export default function DolaresPage() {
                       onClick={() => setKpiInfo({ title: t.statToGoal, value: periodosParaMeta === 0 ? t.reached : `${periodosParaMeta} ${t.periodsShort}`, explain: t.kpiToGoalInfo, color: "var(--yellow)" })} />
                   )}
                 </div>
+                {/* Ritmo vs fecha objetivo: mismo criterio que la meta propia — silencio si vas
+                    bien, solo avisa si el ritmo actual no alcanza para llegar a tiempo. */}
+                {vaAtrasadoFX && ritmoNecesarioFX !== null && (
+                  <div style={{ fontSize: 11, color: "var(--yellow)", marginTop: 6 }}>
+                    {t.goalBehindPace(`${simbolo} ${Math.round(ritmoNecesarioFX).toLocaleString("es-AR")}`, fechaCortaConAnio(config.meta.metaFX.fecha ?? ""))}
+                  </div>
+                )}
                 {/* Simulador FX: la perilla es COMPRAR más divisa por período (en la unidad de
                     la reserva), no ahorrar pesos. Solo si todavía falta. */}
                 {metaMonto != null && totalDisplay < metaMonto && (
