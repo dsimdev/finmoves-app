@@ -4,6 +4,15 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.107.0] — 2026-08-04
+
+### Te avisa si vas atrasado con tu meta de ahorro
+Si le pusiste fecha a tu meta de ahorro (o de compra en dólares/euros) y tu ritmo actual no
+alcanza para llegar a tiempo, ahora te avisa cuánto más necesitás ahorrar por período. Si vas
+bien, no dice nada — solo te avisa cuando hace falta cambiar algo.
+
+---
+
 ## [2.106.0] — 2026-08-04
 
 ### Ves el presupuesto mientras cargás el gasto
