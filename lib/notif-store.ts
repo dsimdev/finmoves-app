@@ -6,7 +6,7 @@ const MAX_NOTIFS = 30; // bandeja acotada: al escribir, podamos las más viejas.
 
 type NotifTipo =
   | "dolar" | "version" | "recurrente" | "sueldo" | "carga"
-  | "meta" | "recordatorio" | "permiso" | "sync" | "baja" | "wrapped" | "presupuesto";
+  | "meta" | "recordatorio" | "permiso" | "sync" | "baja" | "wrapped" | "presupuesto" | "ritmo";
 
 // Envía el push Y, si se confirma, persiste la notif en la bandeja in-app (colección
 // /notificaciones) con su deep-link `dest`. Devuelve `true` sólo si el push se confirmó,
