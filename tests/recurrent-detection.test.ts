@@ -26,13 +26,42 @@ describe("sugerirRecurrente", () => {
     expect(sugerirRecurrente(movs, { tipo: "Gasto", categoria: "Servicios", descripcion: "Netflix" }, new Set())).toBe(false);
   });
 
-  it("varias cargas en el MISMO período cuentan como 1 solo período (no gasto repetido casual)", () => {
+  it("varias cargas en el MISMO período no alcanzan el umbral (es un solo período)", () => {
     const movs = [
       mov({ categoria: "Comida", descripcion: "Supermercado", periodoId: "1/1/2026" }),
       mov({ categoria: "Comida", descripcion: "Supermercado", periodoId: "1/1/2026" }),
       mov({ categoria: "Comida", descripcion: "Supermercado", periodoId: "1/1/2026" }),
     ];
     expect(sugerirRecurrente(movs, { tipo: "Gasto", categoria: "Comida", descripcion: "Supermercado" }, new Set())).toBe(false);
+  });
+
+  // El bug reportado en prod (v2.109.0): un gasto diario con la misma descripción cruza los 3
+  // períodos igual que un pago fijo, pero se carga varias veces en cada uno. No es recurrente.
+  it("NO sugiere un gasto diario repetido: 3 períodos pero varias cargas en cada uno", () => {
+    const movs = [
+      ...["1/1/2026", "1/2/2026", "1/3/2026"].flatMap((periodoId) => [
+        mov({ categoria: "Comida", descripcion: "Café", periodoId }),
+        mov({ categoria: "Comida", descripcion: "Café", periodoId }),
+        mov({ categoria: "Comida", descripcion: "Café", periodoId }),
+      ]),
+    ];
+    expect(sugerirRecurrente(movs, { tipo: "Gasto", categoria: "Comida", descripcion: "Café" }, new Set())).toBe(false);
+  });
+
+  it("NO sugiere si UN solo período tiene más de una carga, aunque el resto tenga una", () => {
+    const movs = [
+      mov({ categoria: "Servicios", descripcion: "Netflix", periodoId: "1/1/2026" }),
+      mov({ categoria: "Servicios", descripcion: "Netflix", periodoId: "1/2/2026" }),
+      mov({ categoria: "Servicios", descripcion: "Netflix", periodoId: "1/3/2026" }),
+      mov({ categoria: "Servicios", descripcion: "Netflix", periodoId: "1/3/2026" }),
+    ];
+    expect(sugerirRecurrente(movs, { tipo: "Gasto", categoria: "Servicios", descripcion: "Netflix" }, new Set())).toBe(false);
+  });
+
+  it("sigue sugiriendo con una carga por período en más períodos que el umbral", () => {
+    const movs = ["1/1/2026", "1/2/2026", "1/3/2026", "1/4/2026", "1/5/2026"].map((periodoId) =>
+      mov({ categoria: "Vivienda", descripcion: "Alquiler", periodoId }));
+    expect(sugerirRecurrente(movs, { tipo: "Gasto", categoria: "Vivienda", descripcion: "Alquiler" }, new Set())).toBe(true);
   });
 
   it("no exige monto igual: montos distintos en cada período igual cuentan", () => {
