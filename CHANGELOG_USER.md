@@ -4,6 +4,15 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.109.1] — 2026-08-07
+
+### La sugerencia de recurrente ya no molesta con gastos de todos los días
+Antes te sugería marcar como recurrente cosas que cargás seguido dentro del mismo período
+(un café, el almuerzo). Ahora solo te lo sugiere si lo cargás **una vez por período**, que es
+como se comporta un pago fijo de verdad (alquiler, una suscripción).
+
+---
+
 ## [2.109.0] — 2026-08-05
 
 ### Te sugiere marcar como recurrente lo que repetís seguido

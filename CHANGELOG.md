@@ -4,6 +4,22 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.109.1] — 2026-08-07
+
+### Fixed — recurrence suggestion fired on everyday expenses
+`sugerirRecurrente` only checked that a combination spanned 3+ distinct periods, which a
+daily expense logged under the same description ("Café", "Almuerzo") satisfies just as well
+as a fixed monthly payment. Reported in production right after v2.109.0.
+
+- The suggestion now also requires a cadence of **one load per period**: if any period has
+  more than one load of the same combination, it's a frequent expense, not a fixed payment,
+  and nothing is suggested. Bails out on the first duplicate instead of counting them all.
+- 3 new tests (11 total in `tests/recurrent-detection.test.ts`), including the exact reported
+  case (3 periods × 3 loads each → no suggestion) and a regression check that a real monthly
+  payment across 5 periods still suggests.
+
+---
+
 ## [2.109.0] — 2026-08-05
 
 ### Added — recurrence suggestion and category spending anomaly
