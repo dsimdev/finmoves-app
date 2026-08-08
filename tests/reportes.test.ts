@@ -363,6 +363,20 @@ describe("anomaliasCategorias", () => {
   });
   const gasto = (categoria: string, monto: number) => mov({ tipo: "Gasto", categoria, monto });
 
+  // Las compras de divisa son irregulares por naturaleza: contra un promedio siempre dan
+  // desvío, así que marcarían anomalía cada vez que se compra. Por eso se usa esGastoPuro.
+  it("IGNORA las compras de divisa (CompraUSD no dispara anomalía)", () => {
+    const compra = (monto: number) => mov({ tipo: "CompraUSD", categoria: "CompraUSD", monto });
+    const anteriores = [
+      per("1/3/2026", [compra(100_000)]),
+      per("1/2/2026", [compra(100_000)]),
+      per("1/1/2026", [compra(100_000)]),
+    ];
+    // Compra 10× el promedio: con esGasto habría marcado +900%.
+    const actual = per("1/4/2026", [compra(1_000_000)]);
+    expect(anomaliasCategorias(actual, anteriores, 3)).toEqual([]);
+  });
+
   it("marca una categoría que gastó más del 50% por encima de su promedio de 3 períodos", () => {
     const anteriores = [
       per("1/3/2026", [gasto("Salud", 1000)]),

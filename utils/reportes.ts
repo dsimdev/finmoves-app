@@ -216,9 +216,12 @@ export function anomaliasCategorias(
   anteriores: PeriodoResumen[],
   ventana: number,
 ): AnomaliaCategoria[] {
+  // esGastoPuro, NO esGasto: las compras de divisa son irregulares por naturaleza (se compra
+  // cuando sobra o cuando conviene el precio), así que contra un promedio siempre dan desvío
+  // y marcarían "anomalía" cada vez que comprás. Misma razón por la que esGastoPuro existe.
   const sumar = (movs: Movimiento[]) => {
     const m = new Map<string, number>();
-    for (const mv of movs) if (esGasto(mv)) m.set(mv.categoria, (m.get(mv.categoria) ?? 0) + mv.monto);
+    for (const mv of movs) if (esGastoPuro(mv)) m.set(mv.categoria, (m.get(mv.categoria) ?? 0) + mv.monto);
     return m;
   };
   const historial = anteriores.slice(0, ventana);
