@@ -25,6 +25,10 @@ i18n). Base was healthy; four items came out of it.
 - **Stale cron comment.** The 150-movement read is described as shared by two checks; three
   more were added since, and two of them need the full current period. Comment now says so,
   including the real ceiling.
+- **Logo aspect-ratio warning on every page load.** The login `<Image>` declared 220×150 for
+  a file that is actually 9961×1983 (5:1), so Next logged an aspect-ratio warning on each
+  load. Now declares the intrinsic size with `height: auto`; the render is pixel-identical
+  (the 5:1 ratio already governed the real height of ~44px — verified by screenshot diff).
 
 ### Verified clean (no findings)
 Firestore/Storage rules (deny-by-default, `permisos` not self-writable, Storage server-only),
