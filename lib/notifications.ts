@@ -93,9 +93,12 @@ async function notifyUser(uid: string, ctx: GlobalCtx): Promise<void> {
     if (notify.lastDailyRun !== hoy) {
       const config = (await adminDb().doc(`users/${uid}/config/meta`).get()).data() as ConfigUsuario | undefined;
       if (config) {
-        // Lectura de movimientos recientes compartida por sueldo y carga-olvidada (ambos
-        // solo necesitan lo más nuevo). Recurrentes hace su propia lectura por ventana de
-        // fecha, porque necesita ver más atrás que estos 150 en períodos de alto volumen.
+        // Lectura de movimientos recientes compartida por TODOS los checks de abajo: sueldo,
+        // carga-olvidada, wrapped, presupuesto y ritmo de gasto. Los dos últimos necesitan el
+        // período actual COMPLETO (no solo lo más nuevo), así que estos 150 alcanzan mientras
+        // un período tenga menos de 150 movimientos — hoy sobra, pero es el techo real.
+        // Recurrentes hace su propia lectura por ventana de fecha, porque necesita ver más
+        // atrás que estos 150 en períodos de alto volumen.
         const recentSnap = await adminDb()
           .collection(`users/${uid}/movimientos`)
           .orderBy("timestampCarga", "desc")

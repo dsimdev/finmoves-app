@@ -24,6 +24,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scripts one-off de Node (CommonJS, fuera del build y del repo — están en .gitignore).
+    // Sin esto, sus `require()` daban 12 errores que tapaban cualquier error real de la app.
+    "scripts/**",
   ]),
 ]);
 
