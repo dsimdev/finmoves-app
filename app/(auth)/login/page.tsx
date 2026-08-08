@@ -95,7 +95,11 @@ export default function LoginPage() {
 
       <div style={{ width: "min(400px, 100%)", position: "relative", zIndex: 1 }} className="fade-up">
         <div style={{ marginBottom: 28 }}>
-          <Image src="/logo5-cropped.png" alt="FinMoves" width={220} height={150} priority style={{ objectFit: "contain", display: "block", margin: "0 auto" }} />
+          {/* width/height = tamaño INTRÍNSECO del archivo (9961×1983, ratio 5:1). Antes se
+              declaraba 220×150 (ratio 1.47:1), que no es el del archivo, y Next avisaba por
+              consola en cada carga. El alto real siempre fue ~44px (el ratio mandaba), así
+              que `height: auto` mantiene el render idéntico. */}
+          <Image src="/logo5-cropped.png" alt="FinMoves" width={9961} height={1983} priority style={{ display: "block", margin: "0 auto", width: 220, height: "auto" }} />
         </div>
 
         <form onSubmit={handleAuth} style={{
