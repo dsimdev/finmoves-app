@@ -4,6 +4,36 @@ All notable changes to FinMoves are documented here.
 
 ---
 
+## [2.109.2] — 2026-08-07
+
+### Fixed — 360 audit over v2.101.0…v2.109.1
+Incremental audit of the 68-commit delta (security, data-safety, correctness, cost, deps,
+i18n). Base was healthy; four items came out of it.
+
+- **`anomaliasCategorias` counted FX purchases.** It used `esGasto` (which includes
+  `CompraUSD`) instead of `esGastoPuro`, contradicting the convention documented on
+  `esGastoPuro` itself: FX buys skew averages and deviations. Since they're lumpy by nature,
+  every purchase would have been flagged as "unusual spending". Now excluded, with a test
+  pinning it (a 10× purchase over the average must produce no anomaly).
+- **Vulnerable pins in `overrides`.** The repo's own overrides pinned `brace-expansion` to
+  versions inside the advisory range (1.1.16 / 2.1.2) and `postcss` 8.5.23 dragged
+  `nanoid` 3.3.16. Bumped to 1.1.18 / 2.1.4 / 8.5.26, plus a `js-yaml` 4.3.1 pin.
+  `npm audit` goes from 2 high (prod) + 6 high (dev) to **0**.
+- **ESLint now ignores `scripts/`.** Those local CommonJS one-offs (already gitignored)
+  produced 12 `no-require-imports` errors, so `npx eslint .` was never green and would have
+  masked a real error. 12 errors → 0.
+- **Stale cron comment.** The 150-movement read is described as shared by two checks; three
+  more were added since, and two of them need the full current period. Comment now says so,
+  including the real ceiling.
+
+### Verified clean (no findings)
+Firestore/Storage rules (deny-by-default, `permisos` not self-writable, Storage server-only),
+all 14 API routes' auth gating, no tracked or hardcoded secrets, category rename/delete
+reading from the server, i18n parity (591/591 keys), notification dedup following the v2.71.0
+rule, incremental movement fetching.
+
+---
+
 ## [2.109.1] — 2026-08-07
 
 ### Fixed — recurrence suggestion fired on everyday expenses

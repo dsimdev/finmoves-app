@@ -4,6 +4,17 @@ Lo nuevo y lo que mejoró, versión por versión.
 
 ---
 
+## [2.109.2] — 2026-08-07
+
+### Comprar dólares ya no cuenta como "gasto fuera de lo normal"
+La sección nueva de Reportes tomaba las compras de divisa como un gasto más, y como no se
+compra todos los meses por el mismo monto, te marcaba anomalía cada vez que comprabas. Ahora
+las ignora y mira solo tus gastos reales.
+
+El resto del release son arreglos internos, sin cambios visibles.
+
+---
+
 ## [2.109.1] — 2026-08-07
 
 ### La sugerencia de recurrente ya no molesta con gastos de todos los días
